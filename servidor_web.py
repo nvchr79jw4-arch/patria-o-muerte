@@ -42,13 +42,22 @@ class Sala:
 
 # ── Rutas web ──────────────────────────────────────────────
 
+
 @app.route('/')
 def index():
-    return send_from_directory('web', 'index.html')
+    import os
+    base = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(os.path.join(base, 'web'), 'index.html')
 
 @app.route('/web/<path:filename>')
 def static_files(filename):
     return send_from_directory('web', filename)
+
+@app.route('/sprites/<path:filename>')
+def sprite_files(filename):
+    import os
+    base = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(os.path.join(base, 'web', 'sprites'), filename)
 
 # ── Eventos Socket.IO ──────────────────────────────────────
 
