@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Patria o Muerte 🇺🇾</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --verde: #1a5c1a; --verde-clar: #2d8a2d; --verde-med: #226622;
+  --dorado: #c8a020; --amarillo: #dcc032;
+  --azul: #1428a0; --azul-clar: #3050d0;
+  --rojo: #8a1a1a; --rojo-clar: #cc3030;
+  --gris-osc: #1a1a1a; --gris-med: #333; --gris-clar: #888;
+  --crema: #e6d4aa; --negro: #0a0a0a;
+  --naranja: #a04010; --morado: #5a1478;
+}
+body {
+  background: var(--negro); color: white;
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh; overflow-x: hidden;
+  background: linear-gradient(180deg, #0a150a 0%, #0f2010 100%);
+}
+
+/* ── PANTALLAS ── */
+.pantalla { display: none; min-height: 100vh; padding: 16px; }
+.pantalla.activa { display: flex; flex-direction: column; align-items: center; }
+
+/* ── TÍTULO ── */
+.titulo-principal {
+  font-size: clamp(1.4rem, 5vw, 2rem); font-weight: 900;
+  color: var(--dorado); text-align: center; margin: 16px 0 4px;
+  text-shadow: 0 0 20px rgba(200,160,32,0.5);
+}
+.subtitulo { color: var(--crema); font-size: 0.9rem; text-align: center; margin-bottom: 16px; }
+
+/* ── BOTONES ── */
+.btn {
+  display: block; width: 100%; max-width: 340px;
+  padding: 14px 20px; margin: 8px auto;
+  border: none; border-radius: 10px;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  transition: transform 0.1s, opacity 0.1s;
+  text-align: center;
+}
+.btn:active { transform: scale(0.96); }
+.btn-verde  { background: var(--verde-clar); color: white; border: 2px solid #4aaa4a; }
+.btn-dorado { background: linear-gradient(135deg, #8a6010, #c8a020); color: white; border: 2px solid var(--dorado); }
+.btn-azul   { background: var(--azul-clar); color: white; border: 2px solid #6080ff; }
+.btn-rojo   { background: var(--rojo-clar); color: white; border: 2px solid #ff6060; }
+.btn-gris   { background: var(--gris-med); color: #ccc; border: 2px solid #555; }
+.btn-morado { background: var(--morado); color: white; border: 2px solid #9030b0; }
+.btn:disabled { opacity: 0.4; }
+
+/* ── INPUT ── */
+.input-campo {
+  width: 100%; max-width: 340px; padding: 12px 16px;
+  background: #1a2a1a; border: 2px solid var(--verde-clar);
+  border-radius: 10px; color: white; font-size: 1rem;
+  margin: 6px auto; display: block;
+}
+.input-campo:focus { outline: none; border-color: var(--amarillo); }
+
+/* ── SELECTOR MAZO ── */
+.grid-mazos {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; width: 100%; max-width: 400px; margin: 12px 0;
+}
+.mazo-btn {
+  padding: 12px 8px; border-radius: 10px; border: 2px solid #333;
+  background: #1a1a1a; color: white; cursor: pointer;
+  text-align: center; transition: all 0.15s; font-size: 0.85rem;
+}
+.mazo-btn.seleccionado { border-color: var(--amarillo); background: #2a2a1a; }
+.mazo-btn .mazo-icon { font-size: 1.4rem; display: block; }
+.mazo-btn .mazo-nombre { font-weight: 700; font-size: 0.8rem; }
+.mazo-btn .mazo-desc { color: #888; font-size: 0.7rem; }
+
+/* ── TABLERO ── */
+#pantalla-juego {
+  padding: 0; background: #0a150a;
+}
+.header-juego {
+  background: #111; padding: 8px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 2px solid var(--verde-med);
+  position: sticky; top: 0; z-index: 100;
+}
+.jugador-info { text-align: center; }
+.jugador-nombre { font-size: 0.8rem; color: #aaa; }
+.jugador-hp { font-size: 1.2rem; font-weight: 900; }
+.hp-verde { color: #4aee4a; }
+.hp-amarillo { color: var(--amarillo); }
+.hp-rojo { color: var(--rojo-clar); }
+.barra-hp {
+  width: 80px; height: 8px; background: #333; border-radius: 4px; margin: 2px auto;
+}
+.barra-hp-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+.turno-info { font-size: 0.75rem; color: var(--verde-clar); text-align: center; }
+
+/* ── CAMPO ── */
+.campo {
+  background: linear-gradient(180deg, #0d2010 0%, #122015 50%, #0d2010 100%);
+  padding: 8px; position: relative;
+}
+.linea-central {
+  text-align: center; font-size: 0.65rem; color: #3a6a3a;
+  padding: 4px 0; border-top: 1px solid #2a4a2a; border-bottom: 1px solid #2a4a2a;
+  margin: 4px 0;
+}
+.carriles-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  margin: 4px 0;
+}
+.carril {
+  background: rgba(0,0,0,0.3); border: 1px solid #2a4a2a;
+  border-radius: 8px; min-height: 110px; padding: 4px;
+  display: flex; flex-direction: column; align-items: center;
+  position: relative; cursor: pointer; transition: all 0.15s;
+}
+.carril:active { transform: scale(0.97); }
+.carril.seleccionable { border-color: var(--amarillo); background: rgba(200,160,32,0.1); }
+.carril.seleccionable::after {
+  content: 'TAP'; position: absolute; bottom: 4px;
+  font-size: 0.55rem; color: var(--amarillo); font-weight: 700;
+}
+.carril-num { font-size: 0.6rem; color: #4a7a4a; position: absolute; top: 3px; left: 5px; }
+
+/* ── SPRITE PIXEL ART ── */
+.sprite-container { margin: 12px auto 4px; }
+canvas.sprite { image-rendering: pixelated; display: block; }
+
+/* ── INFO CRIATURA ── */
+.criatura-info { width: 100%; }
+.criatura-nombre { font-size: 0.6rem; color: #ddd; text-align: center; line-height: 1.1; }
+.stats-row { display: flex; justify-content: space-around; margin: 2px 0; }
+.stat-atk { color: #ff8080; font-size: 0.65rem; font-weight: 700; }
+.stat-def { color: #8080ff; font-size: 0.65rem; font-weight: 700; }
+.floop-badge { font-size: 0.55rem; color: var(--amarillo); text-align: center; }
+.mini-barra { width: 100%; height: 4px; background: #333; border-radius: 2px; margin: 1px 0; }
+.mini-barra-fill { height: 100%; background: #4aee4a; border-radius: 2px; transition: width 0.3s; }
+
+/* edificio */
+.edificio-tag {
+  position: absolute; bottom: 2px; left: 2px; right: 2px;
+  background: rgba(100,50,10,0.8); border-radius: 4px;
+  font-size: 0.55rem; color: var(--crema); text-align: center; padding: 1px 2px;
+}
+
+/* ── MANO ── */
+.zona-mano {
+  background: #0d0d0d; border-top: 2px solid var(--verde-med); padding: 8px;
+}
+.mano-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.mano-titulo { font-size: 0.75rem; color: #888; }
+.pa-badge {
+  background: var(--dorado); color: #000; border-radius: 12px;
+  padding: 2px 10px; font-size: 0.75rem; font-weight: 700;
+}
+.cartas-mano {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.cartas-mano::-webkit-scrollbar { display: none; }
+
+.carta {
+  flex-shrink: 0; width: 75px; border-radius: 8px;
+  padding: 6px 4px; cursor: pointer; transition: all 0.15s;
+  border: 2px solid transparent; position: relative;
+  user-select: none;
+}
+.carta:active { transform: translateY(-4px) scale(1.05); }
+.carta.seleccionada { border-color: var(--amarillo); transform: translateY(-6px); }
+.carta.no-pagable { opacity: 0.4; }
+.carta-criatura { background: linear-gradient(180deg, #1a3a1a, #0d200d); border-color: #2a6a2a; }
+.carta-hechizo  { background: linear-gradient(180deg, #1a1a3a, #0d0d20); border-color: #2a2a8a; }
+.carta-edificio { background: linear-gradient(180deg, #2a1a0a, #1a0d00); border-color: #6a3a0a; }
+.carta.seleccionada.carta-criatura { border-color: var(--amarillo); }
+
+.carta-costo {
+  position: absolute; top: 2px; right: 2px;
+  background: var(--dorado); color: #000; border-radius: 50%;
+  width: 16px; height: 16px; font-size: 0.65rem; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+}
+.carta-nombre { font-size: 0.6rem; color: white; text-align: center; margin: 14px 0 4px; font-weight: 700; line-height: 1.1; }
+.carta-tipo-badge { font-size: 0.5rem; text-align: center; color: #888; }
+.carta-stats { display: flex; justify-content: space-around; margin: 4px 0; }
+.carta-desc { font-size: 0.5rem; color: #aaa; text-align: center; line-height: 1.2; }
+.carta-floop { font-size: 0.5rem; color: var(--amarillo); text-align: center; margin-top: 2px; }
+
+/* ── BOTONES DE ACCIÓN ── */
+.acciones-juego {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px; padding: 8px; background: #0d0d0d;
+}
+.btn-accion {
+  padding: 10px 4px; border-radius: 8px; border: none;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer;
+  transition: all 0.1s;
+}
+.btn-accion:active { transform: scale(0.95); }
+.btn-jugar { background: var(--verde-clar); color: white; }
+.btn-floop { background: var(--morado); color: white; }
+.btn-fin   { background: var(--rojo); color: white; }
+.btn-accion:disabled { opacity: 0.3; }
+
+/* ── LOG ── */
+.log-juego {
+  background: #050505; border-top: 1px solid #222;
+  padding: 6px 10px; max-height: 70px; overflow-y: auto;
+  scrollbar-width: none;
+}
+.log-juego::-webkit-scrollbar { display: none; }
+.log-msg { font-size: 0.65rem; color: #666; line-height: 1.6; }
+.log-msg.nuevo { color: #aaa; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85); z-index: 200;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.activo { display: flex; }
+.modal {
+  background: #1a2a1a; border: 2px solid var(--verde-clar);
+  border-radius: 16px; padding: 20px; width: 100%; max-width: 360px;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal-titulo { font-size: 1.1rem; color: var(--dorado); font-weight: 700; margin-bottom: 12px; text-align: center; }
+
+/* ── CARTA DETALLE ── */
+.carta-detalle {
+  background: #0d1a0d; border: 2px solid var(--verde-clar);
+  border-radius: 12px; padding: 12px; margin: 8px 0;
+}
+.carta-detalle-nombre { font-size: 1rem; font-weight: 700; color: white; }
+.carta-detalle-tipo { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+.carta-detalle-stats { display: flex; gap: 12px; margin: 8px 0; }
+.carta-detalle-stat { text-align: center; }
+.carta-detalle-stat span { display: block; }
+.stat-val { font-size: 1.2rem; font-weight: 900; }
+.stat-lbl { font-size: 0.6rem; color: #888; }
+.carta-detalle-desc { font-size: 0.8rem; color: #ccc; margin: 6px 0; }
+.carta-detalle-floop { font-size: 0.8rem; color: var(--amarillo); background: rgba(200,160,32,0.1); border-radius: 6px; padding: 6px; margin-top: 6px; }
+
+/* ── NOTIFICACIÓN ── */
+.notif {
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.9); border: 2px solid var(--dorado);
+  color: var(--amarillo); padding: 8px 20px; border-radius: 20px;
+  font-size: 0.9rem; font-weight: 700; z-index: 300;
+  animation: notif-anim 2s forwards;
+  pointer-events: none; white-space: nowrap;
+}
+@keyframes notif-anim {
+  0%   { opacity: 0; top: 90px; }
+  15%  { opacity: 1; top: 80px; }
+  70%  { opacity: 1; top: 80px; }
+  100% { opacity: 0; top: 60px; }
+}
+
+/* ── FIN DE PARTIDA ── */
+.fin-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92); z-index: 400;
+  align-items: center; justify-content: center;
+  flex-direction: column; text-align: center; padding: 20px;
+}
+.fin-overlay.activo { display: flex; }
+.fin-trofeo { font-size: 4rem; margin-bottom: 12px; animation: bounce 0.5s ease infinite alternate; }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+.fin-ganador { font-size: 1.6rem; font-weight: 900; color: #4aee4a; margin-bottom: 8px; }
+.fin-perdedor { font-size: 1rem; color: var(--rojo-clar); margin-bottom: 24px; }
+
+/* ── ONLINE ── */
+.codigo-sala {
+  font-size: 2.5rem; font-weight: 900; color: var(--amarillo);
+  letter-spacing: 8px; text-align: center; margin: 16px 0;
+  background: #1a1a0a; padding: 12px; border-radius: 10px;
+  border: 2px solid var(--dorado);
+}
+.estado-online { text-align: center; color: #888; font-size: 0.85rem; margin: 8px 0; }
+
+/* ── SOL ANIMADO ── */
+.sol-animado {
+  width: 80px; height: 80px; margin: 0 auto 16px;
+  animation: girar 8s linear infinite;
+}
+@keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ── IA PENSANDO ── */
+.ia-pensando {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 20px;
+  font-size: 0.8rem; color: #888; margin: 8px auto;
+}
+.dot-anim { animation: dot 1.2s infinite; }
+.dot-anim:nth-child(2) { animation-delay: 0.2s; }
+.dot-anim:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<!-- ══ PANTALLA MENÚ ══════════════════════════════════════ -->
+<div id="pantalla-menu" class="pantalla activa">
+  <svg class="sol-animado" viewBox="0 0 80 80">
+    <circle cx="40" cy="40" r="18" fill="#c8a020"/>
+    <g stroke="#a07810" stroke-width="2">
+      <line x1="40" y1="4"  x2="40" y2="14"/>
+      <line x1="40" y1="66" x2="40" y2="76"/>
+      <line x1="4"  y1="40" x2="14" y2="40"/>
+      <line x1="66" y1="40" x2="76" y2="40"/>
+      <line x1="14" y1="14" x2="21" y2="21"/>
+      <line x1="59" y1="59" x2="66" y2="66"/>
+      <line x1="66" y1="14" x2="59" y2="21"/>
+      <line x1="21" y1="59" x2="14" y2="66"/>
+    </g>
+    <circle cx="34" cy="37" r="3" fill="#7a5808"/>
+    <circle cx="46" cy="37" r="3" fill="#7a5808"/>
+    <path d="M 33 46 Q 40 52 47 46" stroke="#7a5808" stroke-width="2" fill="none"/>
+  </svg>
+
+  <div class="titulo-principal">🇺🇾 PATRIA O MUERTE 🇺🇾</div>
+  <div class="subtitulo">El juego de cartas uruguayo</div>
+
+  <button class="btn btn-verde" onclick="irA('pantalla-vs-ia')">⚔️ Jugar vs IA</button>
+  <button class="btn btn-morado" onclick="irA('pantalla-online')">🌐 Multijugador Online</button>
+  <button class="btn btn-dorado" onclick="irA('pantalla-reglas')">📖 Reglas</button>
+</div>
+
+<!-- ══ PANTALLA VS IA ══════════════════════════════════════ -->
+<div id="pantalla-vs-ia" class="pantalla">
+  <div class="titulo-principal">⚔️ VS IA</div>
+
+  <input id="nombre-ia" class="input-campo" type="text" placeholder="Tu nombre" maxlength="16">
+
+  <div style="color:#aaa; font-size:0.85rem; margin:12px 0 6px; text-align:center;">Elegí tu mazo:</div>
+  <div class="grid-mazos" id="grid-mazos-ia"></div>
+
+  <button class="btn btn-verde" onclick="iniciarVsIA()">¡JUGAR!</button>
+  <button class="btn btn-gris" onclick="irA('pantalla-menu')">← Volver</button>
+</div>
+
+<!-- ══ PANTALLA ONLINE ════════════════════════════════════ -->
+<div id="pantalla-online" class="pantalla">
+  <div class="titulo-principal">🌐 Online</div>
+
+  <input id="nombre-online" class="input-campo" type="text" placeholder="Tu nombre" maxlength="16">
+
+  <div style="color:#aaa; font-size:0.85rem; margin:12px 0 6px; text-align:center;">Elegí tu mazo:</div>
+  <div class="grid-mazos" id="grid-mazos-online"></div>
+
+  <button class="btn btn-verde" onclick="crearSala()">➕ Crear sala</button>
+  <button class="btn btn-morado" onclick="irA('pantalla-unirse')">🚪 Unirse a sala</button>
+  <button class="btn btn-gris" onclick="irA('pantalla-menu')">← Volver</button>
+</div>
+
+<!-- ══ PANTALLA UNIRSE ════════════════════════════════════ -->
+<div id="pantalla-unirse" class="pantalla">
+  <div class="titulo-principal">🚪 Unirse</div>
+  <div class="subtitulo">Ingresá el código de la sala</div>
+
+  <input id="codigo-sala-input" class="input-campo" type="text"
+         placeholder="CÓDIGO" maxlength="6" style="text-transform:uppercase; font-size:1.5rem; letter-spacing:6px; text-align:center;">
+
+  <button class="btn btn-verde" onclick="unirseASala()">Conectar →</button>
+  <button class="btn btn-gris" onclick="irA('pantalla-online')">← Volver</button>
+</div>
+
+<!-- ══ PANTALLA ESPERANDO ══════════════════════════════════ -->
+<div id="pantalla-esperando" class="pantalla">
+  <div class="titulo-principal">⏳ Esperando rival...</div>
+  <div class="subtitulo">Compartí este código:</div>
+
+  <div class="codigo-sala" id="codigo-mostrar">------</div>
+  <div class="estado-online" id="estado-online-txt">Esperando que alguien se una...</div>
+
+  <button class="btn btn-dorado" onclick="copiarCodigo()">📋 Copiar código</button>
+  <button class="btn btn-gris" onclick="cancelarOnline()">✕ Cancelar</button>
+</div>
+
+<!-- ══ PANTALLA REGLAS ════════════════════════════════════ -->
+<div id="pantalla-reglas" class="pantalla">
+  <div class="titulo-principal">📖 Reglas</div>
+  <div id="contenido-reglas" style="width:100%;max-width:400px;"></div>
+  <button class="btn btn-gris" style="margin-top:16px;" onclick="irA('pantalla-menu')">← Volver</button>
+</div>
+
+<!-- ══ PANTALLA JUEGO ══════════════════════════════════════ -->
+<div id="pantalla-juego" class="pantalla" style="padding:0;">
+  <!-- Header -->
+  <div class="header-juego">
+    <div class="jugador-info">
+      <div class="jugador-nombre" id="nombre-rival-hdr">Rival</div>
+      <div class="jugador-hp hp-verde" id="hp-rival-hdr">25 ❤️</div>
+      <div class="barra-hp"><div class="barra-hp-fill" id="barra-rival" style="width:100%;background:#cc3030;"></div></div>
+    </div>
+    <div class="turno-info" id="turno-info">Tu turno</div>
+    <div class="jugador-info">
+      <div class="jugador-nombre" id="nombre-jugador-hdr">Tú</div>
+      <div class="jugador-hp hp-verde" id="hp-jugador-hdr">25 ❤️</div>
+      <div class="barra-hp"><div class="barra-hp-fill" id="barra-jugador" style="width:100%;background:#4aee4a;"></div></div>
+    </div>
+  </div>
+
+  <!-- Campo -->
+  <div class="campo">
+    <!-- Carriles rival -->
+    <div class="carriles-grid" id="carriles-rival"></div>
+    <div class="linea-central">── CAMPO DE BATALLA ──</div>
+    <!-- Carriles jugador -->
+    <div class="carriles-grid" id="carriles-jugador"></div>
+  </div>
+
+  <!-- Acciones -->
+  <div class="acciones-juego">
+    <button class="btn-accion btn-jugar" id="btn-jugar" onclick="jugarCarta()">🃏 Jugar</button>
+    <button class="btn-accion btn-floop" id="btn-floop" onclick="activarFloop()">✨ FLOOP</button>
+    <button class="btn-accion btn-fin"   id="btn-fin"   onclick="terminarTurno()">⏭ Fin</button>
+  </div>
+
+  <!-- Mano -->
+  <div class="zona-mano">
+    <div class="mano-header">
+      <span class="mano-titulo">TU MANO</span>
+      <span class="pa-badge" id="pa-badge">2 PA</span>
+    </div>
+    <div class="cartas-mano" id="cartas-mano"></div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-juego" id="log-juego"></div>
+</div>
+
+<!-- ══ MODAL CARRIL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-carril">
+  <div class="modal">
+    <div class="modal-titulo" id="modal-carril-titulo">Elegí un carril</div>
+    <div id="modal-carril-opciones"></div>
+    <button class="btn btn-gris" style="margin-top:8px;" onclick="cerrarModal('modal-carril')">Cancelar</button>
+  </div>
+</div>
+
+<!-- ══ MODAL CARTA DETALLE ══════════════════════════════════ -->
+<div class="modal-overlay" id="modal-carta">
+  <div class="modal">
+    <div id="modal-carta-contenido"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+      <button class="btn btn-verde" onclick="confirmarJugarCarta()">✓ Jugar</button>
+      <button class="btn btn-gris"  onclick="cerrarModal('modal-carta')">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FIN DE PARTIDA ══════════════════════════════════════ -->
+<div class="fin-overlay" id="fin-overlay">
+  <div class="fin-trofeo">🏆</div>
+  <div class="fin-ganador" id="fin-ganador"></div>
+  <div class="fin-perdedor" id="fin-perdedor"></div>
+  <button class="btn btn-verde" style="max-width:200px;" onclick="volverAlMenu()">🔄 Jugar de nuevo</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  DATOS DEL JUEGO
+// ════════════════════════════════════════════════════════════
+
+const MAZOS_INFO = [
+  { nombre: "🌿 Oriental",  desc: "Gauchos y caudillos",   key: "oriental" },
+  { nombre: "🎭 Uruguayo",  desc: "Fútbol y carnaval",     key: "uruguayo" },
+  { nombre: "🏹 Charrúa",   desc: "Guerreros originarios", key: "charrua"  },
+  { nombre: "🏛 Político",  desc: "Historia oriental",     key: "politico" },
+  { nombre: "🩵 Celeste",   desc: "La selección",          key: "celeste"  },
+];
+
+const CARTAS_DATA = {
+  oriental: [
+    {nombre:"El Gaucho",     tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Jinete indomable",floop:"Carga: +2 ATK este turno"},
+    {nombre:"El Gaucho",     tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Jinete indomable",floop:"Carga: +2 ATK este turno"},
+    {nombre:"Artigas",       tipo:"criatura",costo:2,ataque:5,defensa:7,desc:"El Protector",floop:"Todas las criaturas aliadas +1 ATK"},
+    {nombre:"La Payadora",   tipo:"criatura",costo:1,ataque:2,defensa:3,desc:"Sus versos paralizan",floop:"Paraliza una criatura enemiga"},
+    {nombre:"La Payadora",   tipo:"criatura",costo:1,ataque:2,defensa:3,desc:"Sus versos paralizan",floop:"Paraliza una criatura enemiga"},
+    {nombre:"El Blandengue", tipo:"criatura",costo:2,ataque:4,defensa:5,desc:"Caballería de elite",floop:""},
+    {nombre:"El Blandengue", tipo:"criatura",costo:2,ataque:4,defensa:5,desc:"Caballería de elite",floop:""},
+    {nombre:"El Matrero",    tipo:"criatura",costo:1,ataque:4,defensa:2,desc:"Rápido y esquivo",floop:""},
+    {nombre:"El Matrero",    tipo:"criatura",costo:1,ataque:4,defensa:2,desc:"Rápido y esquivo",floop:""},
+    {nombre:"La Curandera",  tipo:"criatura",costo:1,ataque:1,defensa:3,desc:"Sana las heridas",floop:"Cura 3 DEF a una criatura aliada"},
+    {nombre:"El Rancho",     tipo:"edificio",costo:1,defensa:4,desc:"Refugio protector",floop:""},
+    {nombre:"La Estancia",   tipo:"edificio",costo:2,defensa:6,desc:"Criaturas aliadas +1 ATK",floop:""},
+    {nombre:"El Mate",       tipo:"hechizo", costo:0,desc:"Roba 2 cartas",floop:""},
+    {nombre:"El Mate",       tipo:"hechizo", costo:0,desc:"Roba 2 cartas",floop:""},
+    {nombre:"Lanza Gaucha",  tipo:"hechizo", costo:1,desc:"4 daño a una criatura enemiga",floop:""},
+    {nombre:"Lanza Gaucha",  tipo:"hechizo", costo:1,desc:"4 daño a una criatura enemiga",floop:""},
+    {nombre:"Grito de Asencio",tipo:"hechizo",costo:2,desc:"2 daño a todas las criaturas enemigas",floop:""},
+  ],
+  uruguayo: [
+    {nombre:"El Crack",      tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Gambetea cualquier cosa",floop:"Esquiva: no puede ser atacado este turno"},
+    {nombre:"El Crack",      tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Gambetea cualquier cosa",floop:"Esquiva: no puede ser atacado este turno"},
+    {nombre:"El Murguero",   tipo:"criatura",costo:1,ataque:2,defensa:4,desc:"Ritmo desconcierta",floop:"Roba 1 carta y hace 1 daño directo"},
+    {nombre:"El Murguero",   tipo:"criatura",costo:1,ataque:2,defensa:4,desc:"Ritmo desconcierta",floop:"Roba 1 carta y hace 1 daño directo"},
+    {nombre:"El Tamborilero",tipo:"criatura",costo:2,ataque:3,defensa:5,desc:"Lleva el ritmo",floop:"Criaturas aliadas +1 ATK"},
+    {nombre:"El Hincha",     tipo:"criatura",costo:1,ataque:2,defensa:5,desc:"Nunca se rinde",floop:""},
+    {nombre:"El Hincha",     tipo:"criatura",costo:1,ataque:2,defensa:5,desc:"Nunca se rinde",floop:""},
+    {nombre:"El Chivito",    tipo:"criatura",costo:2,ataque:4,defensa:6,desc:"El sanguche más poderoso",floop:"Cura 2 DEF a todas las criaturas aliadas"},
+    {nombre:"La Vedette",    tipo:"criatura",costo:2,ataque:3,defensa:4,desc:"Deslumbra al enemigo",floop:"Criatura enemiga pierde 2 ATK permanentemente"},
+    {nombre:"El Estadio",    tipo:"edificio",costo:2,defensa:7,desc:"Criaturas aliadas +2 ATK",floop:""},
+    {nombre:"La Rambla",     tipo:"edificio",costo:1,defensa:4,desc:"Rival recibe 1 daño al atacar",floop:""},
+    {nombre:"Gol de Vestuario",tipo:"hechizo",costo:1,desc:"3 daño directo al rival",floop:""},
+    {nombre:"Gol de Vestuario",tipo:"hechizo",costo:1,desc:"3 daño directo al rival",floop:""},
+    {nombre:"La Murga",      tipo:"hechizo", costo:2,desc:"Destruye un edificio enemigo",floop:""},
+    {nombre:"El Asado",      tipo:"hechizo", costo:0,desc:"Roba 2 cartas",floop:""},
+    {nombre:"El Asado",      tipo:"hechizo", costo:0,desc:"Roba 2 cartas",floop:""},
+    {nombre:"Campo de Pesadillas",tipo:"hechizo",costo:1,desc:"Criatura enemiga -2 ATK",floop:""},
+  ],
+  charrua: [
+    {nombre:"Guerrero Charrúa",tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Indomable",floop:"+2 ATK este turno"},
+    {nombre:"Guerrero Charrúa",tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Indomable",floop:"+2 ATK este turno"},
+    {nombre:"El Cacique",    tipo:"criatura",costo:2,ataque:5,defensa:6,desc:"Líder supremo",floop:"Sacrificás 4 HP, criaturas aliadas +2 ATK"},
+    {nombre:"La Guerrera",   tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Feroz como el jaguar",floop:"Paraliza una criatura enemiga"},
+    {nombre:"La Guerrera",   tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Feroz como el jaguar",floop:"Paraliza una criatura enemiga"},
+    {nombre:"El Chamán",     tipo:"criatura",costo:2,ataque:2,defensa:5,desc:"Conecta con espíritus",floop:"Roba 2 cartas y cura 3 HP"},
+    {nombre:"Arquero Charrúa",tipo:"criatura",costo:1,ataque:3,defensa:2,desc:"Puntería letal",floop:"3 daño directo al rival"},
+    {nombre:"Arquero Charrúa",tipo:"criatura",costo:1,ataque:3,defensa:2,desc:"Puntería letal",floop:"3 daño directo al rival"},
+    {nombre:"El Último Charrúa",tipo:"criatura",costo:2,ataque:5,defensa:4,desc:"El más poderoso",floop:""},
+    {nombre:"Toldería",      tipo:"edificio",costo:1,defensa:4,desc:"Criaturas +1 DEF",floop:""},
+    {nombre:"Monte Sagrado", tipo:"edificio",costo:2,defensa:5,desc:"Roba 1 carta por turno",floop:""},
+    {nombre:"Boleadoras",    tipo:"hechizo", costo:1,desc:"Inmoviliza una criatura enemiga",floop:""},
+    {nombre:"Boleadoras",    tipo:"hechizo", costo:1,desc:"Inmoviliza una criatura enemiga",floop:""},
+    {nombre:"Grito de Guerra",tipo:"hechizo",costo:2,desc:"Criaturas aliadas +1 ATK este turno",floop:""},
+    {nombre:"Grito de Guerra",tipo:"hechizo",costo:2,desc:"Criaturas aliadas +1 ATK este turno",floop:""},
+    {nombre:"Espiritu Ancestral",tipo:"hechizo",costo:1,desc:"Revive criatura del descarte con 2 DEF",floop:""},
+  ],
+  politico: [
+    {nombre:"José Batlle",   tipo:"criatura",costo:2,ataque:3,defensa:6,desc:"El reformador",floop:"Niega ataque de una criatura enemiga"},
+    {nombre:"El Caudillo",   tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Arrastra multitudes",floop:"Roba 1 carta por criatura aliada"},
+    {nombre:"El Caudillo",   tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Arrastra multitudes",floop:"Roba 1 carta por criatura aliada"},
+    {nombre:"El Senador",    tipo:"criatura",costo:1,ataque:2,defensa:5,desc:"Palabras que cortan",floop:"+1 PA extra"},
+    {nombre:"El Senador",    tipo:"criatura",costo:1,ataque:2,defensa:5,desc:"Palabras que cortan",floop:"+1 PA extra"},
+    {nombre:"La Milica",     tipo:"criatura",costo:2,ataque:4,defensa:5,desc:"Orden y disciplina",floop:""},
+    {nombre:"La Milica",     tipo:"criatura",costo:2,ataque:4,defensa:5,desc:"Orden y disciplina",floop:""},
+    {nombre:"El Colorado",   tipo:"criatura",costo:1,ataque:3,defensa:3,desc:"Rojo de pasión",floop:"Si hay Blanco aliado, ambos +2 ATK"},
+    {nombre:"El Blanco",     tipo:"criatura",costo:1,ataque:3,defensa:3,desc:"Blanco de convicciones",floop:"Si hay Colorado aliado, ambos +2 ATK"},
+    {nombre:"El Parlamento", tipo:"edificio",costo:2,defensa:6,desc:"Ganas 1 PA extra por turno",floop:""},
+    {nombre:"La Intendencia",tipo:"edificio",costo:1,defensa:4,desc:"Hechizos cuestan 1 PA menos",floop:""},
+    {nombre:"Decreto de Ley",tipo:"hechizo", costo:1,desc:"Niega FLOOP de todas las criaturas enemigas",floop:""},
+    {nombre:"Decreto de Ley",tipo:"hechizo", costo:1,desc:"Niega FLOOP de todas las criaturas enemigas",floop:""},
+    {nombre:"Campaña Electoral",tipo:"hechizo",costo:2,desc:"Roba 2 cartas",floop:""},
+    {nombre:"Reforma Agraria",tipo:"hechizo",costo:1,desc:"Destruye edificio enemigo con menos DEF",floop:""},
+    {nombre:"Reforma Agraria",tipo:"hechizo",costo:1,desc:"Destruye edificio enemigo con menos DEF",floop:""},
+  ],
+  celeste: [
+    {nombre:"Luis Suárez",   tipo:"criatura",costo:2,ataque:5,defensa:5,desc:"El pistolero",floop:"¡GOOOL! 3 daño directo"},
+    {nombre:"Diego Forlán",  tipo:"criatura",costo:2,ataque:5,defensa:5,desc:"Mejor del mundo 2010",floop:"Criaturas aliadas +1 ATK"},
+    {nombre:"Edinson Cavani",tipo:"criatura",costo:2,ataque:5,defensa:6,desc:"El Matador",floop:"Cura 3 DEF a una criatura aliada"},
+    {nombre:"El 9",          tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Goleador nato",floop:""},
+    {nombre:"El 9",          tipo:"criatura",costo:1,ataque:4,defensa:3,desc:"Goleador nato",floop:""},
+    {nombre:"El Arquero",    tipo:"criatura",costo:1,ataque:1,defensa:6,desc:"El muro del arco",floop:"Niega próximo ataque directo"},
+    {nombre:"El Arquero",    tipo:"criatura",costo:1,ataque:1,defensa:6,desc:"El muro del arco",floop:"Niega próximo ataque directo"},
+    {nombre:"El Volante",    tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Motor del equipo",floop:"Roba 1 carta"},
+    {nombre:"El Volante",    tipo:"criatura",costo:1,ataque:3,defensa:4,desc:"Motor del equipo",floop:"Roba 1 carta"},
+    {nombre:"El Centenario", tipo:"edificio",costo:2,defensa:7,desc:"Criaturas aliadas +2 ATK",floop:""},
+    {nombre:"La Celeste Olímpica",tipo:"edificio",costo:1,defensa:4,desc:"Criaturas no mueren con 1 DEF",floop:""},
+    {nombre:"El Maracanazo", tipo:"hechizo", costo:2,desc:"4 daño directo al rival",floop:""},
+    {nombre:"Contraataque",  tipo:"hechizo", costo:1,desc:"Devuelve 3 daño al rival",floop:""},
+    {nombre:"Contraataque",  tipo:"hechizo", costo:1,desc:"Devuelve 3 daño al rival",floop:""},
+    {nombre:"La Garra Charrúa",tipo:"hechizo",costo:1,desc:"Una criatura aliada no muere este turno",floop:""},
+    {nombre:"La Garra Charrúa",tipo:"hechizo",costo:1,desc:"Una criatura aliada no muere este turno",floop:""},
+  ],
+};
+
+// ════════════════════════════════════════════════════════════
+//  ESTADO DEL JUEGO
+// ════════════════════════════════════════════════════════════
+
+let G = {
+  // Configuración
+  miNombre: '',
+  miMazo: 'oriental',
+  modoJuego: 'ia',   // 'ia' o 'online'
+  miIdx: 0,
+
+  // Estado partida
+  hp: [25, 25],
+  tablero: [
+    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+  ],
+  mano: [],
+  mazo: [],
+  descarte: [],
+  mazoRival: [],
+  manoRival: 0,
+  turnoActual: 0,   // 0 = jugador 0, 1 = jugador 1
+  pa: 2,
+  cartaSeleccionada: -1,
+  paralizado: {},
+  esquivando: {},
+  nombres: ['Jugador', 'Rival'],
+
+  // Online
+  socket: null,
+  codigoSala: '',
+};
+
+// ════════════════════════════════════════════════════════════
+//  NAVEGACIÓN
+// ════════════════════════════════════════════════════════════
+
+function irA(id) {
+  document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+  window.scrollTo(0,0);
+}
+
+// ════════════════════════════════════════════════════════════
+//  INICIALIZACIÓN DE MAZOS
+// ════════════════════════════════════════════════════════════
+
+let mazoSelIa     = 0;
+let mazoSelOnline = 0;
+
+function initGridMazos(gridId, varSel, onSelect) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  MAZOS_INFO.forEach((m,i) => {
+    const btn = document.createElement('div');
+    btn.className = 'mazo-btn' + (i === 0 ? ' seleccionado' : '');
+    btn.innerHTML = `<span class="mazo-nombre">${m.nombre}</span><span class="mazo-desc">${m.desc}</span>`;
+    btn.onclick = () => {
+      grid.querySelectorAll('.mazo-btn').forEach(b => b.classList.remove('seleccionado'));
+      btn.classList.add('seleccionado');
+      onSelect(i);
+    };
+    grid.appendChild(btn);
+  });
+}
+
+initGridMazos('grid-mazos-ia',     mazoSelIa,     i => mazoSelIa = i);
+initGridMazos('grid-mazos-online', mazoSelOnline, i => mazoSelOnline = i);
+
+// ════════════════════════════════════════════════════════════
+//  REGLAS
+// ════════════════════════════════════════════════════════════
+
+document.getElementById('contenido-reglas').innerHTML = `
+  <div style="background:#0d1a0d;border-radius:10px;padding:14px;margin:8px 0;">
+    <h3 style="color:var(--dorado);margin-bottom:8px;">🎯 Objetivo</h3>
+    <p style="font-size:0.85rem;color:#ccc;line-height:1.6;">Reducí los HP del rival de 25 a 0. El ganador es el Cool Guy.</p>
+  </div>
+  <div style="background:#0d1a0d;border-radius:10px;padding:14px;margin:8px 0;">
+    <h3 style="color:var(--dorado);margin-bottom:8px;">⚡ Turnos</h3>
+    <p style="font-size:0.85rem;color:#ccc;line-height:1.6;">Cada turno tenés 2 Puntos de Acción (PA). Jugá cartas y apretá Fin de Turno para atacar.</p>
+  </div>
+  <div style="background:#0d1a0d;border-radius:10px;padding:14px;margin:8px 0;">
+    <h3 style="color:var(--dorado);margin-bottom:8px;">🃏 Cartas</h3>
+    <p style="font-size:0.85rem;color:#ccc;line-height:1.6;"><b style="color:#4aee4a;">Criatura</b> — Se coloca en un carril. Tiene ATK y DEF.<br><b style="color:#8080ff;">Hechizo</b> — Efecto inmediato.<br><b style="color:#c87820;">Edificio</b> — Da ventajas pasivas.</p>
+  </div>
+  <div style="background:#0d1a0d;border-radius:10px;padding:14px;margin:8px 0;">
+    <h3 style="color:var(--dorado);margin-bottom:8px;">⚔️ Batalla</h3>
+    <p style="font-size:0.85rem;color:#ccc;line-height:1.6;">Carril 1 ataca a Carril 1 del rival. Si el carril rival está vacío, el daño va directo a sus HP.</p>
+  </div>
+  <div style="background:#0d1a0d;border-radius:10px;padding:14px;margin:8px 0;">
+    <h3 style="color:var(--dorado);margin-bottom:8px;">✨ FLOOP</h3>
+    <p style="font-size:0.85rem;color:#ccc;line-height:1.6;">Algunas criaturas tienen habilidad especial. Apretá FLOOP y elegí qué criatura la activa. Solo una vez por turno.</p>
+  </div>
+`;
+
+// ════════════════════════════════════════════════════════════
+//  INICIAR PARTIDA VS IA
+// ════════════════════════════════════════════════════════════
+
+function iniciarVsIA() {
+  const nombre = document.getElementById('nombre-ia').value.trim() || 'Jugador';
+  G.miNombre    = nombre;
+  G.miMazo      = MAZOS_INFO[mazoSelIa].key;
+  G.modoJuego   = 'ia';
+  G.miIdx       = 0;
+
+  const mazosKeys = Object.keys(CARTAS_DATA);
+  const mazosRival = mazosKeys.filter(k => k !== G.miMazo);
+  const keyRival   = mazosRival[Math.floor(Math.random() * mazosRival.length)];
+
+  G.nombres     = [nombre, 'El Gaucho Cibernético'];
+  G.hp          = [25, 25];
+  G.pa          = 2;
+  G.turnoActual = 0;
+  G.cartaSeleccionada = -1;
+  G.paralizado  = {};
+  G.esquivando  = {};
+  G.descarte    = [];
+  G.tablero = [
+    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+  ];
+
+  // Armar mazos
+  G.mazo      = mezclar([...CARTAS_DATA[G.miMazo]].map(c => ({...c, defMax: c.defensa||0, floopUsado: false})));
+  G.mazoRival = mezclar([...CARTAS_DATA[keyRival]].map(c => ({...c, defMax: c.defensa||0, floopUsado: false})));
+  G.mano      = G.mazo.splice(0, 5);
+  G.manoRival = 5;
+  G.mazoRival.splice(0, 5); // descarta 5 para el rival
+
+  irA('pantalla-juego');
+  renderTablero();
+  renderMano();
+  logMsg(`¡Bienvenido, ${nombre}! Tu rival: El Gaucho Cibernético`);
+  logMsg('── Turno 1: Tu turno ──');
+  actualizarHeaderHP();
+}
+
+// ════════════════════════════════════════════════════════════
+//  ONLINE
+// ════════════════════════════════════════════════════════════
+
+function crearSala() {
+  const nombre = document.getElementById('nombre-online').value.trim() || 'Jugador';
+  G.miNombre = nombre;
+  G.miMazo   = MAZOS_INFO[mazoSelOnline].key;
+  G.modoJuego = 'online';
+  iniciarSocket();
+  G.socket.emit('crear_sala');
+  irA('pantalla-esperando');
+}
+
+function unirseASala() {
+  const nombre = document.getElementById('nombre-online').value.trim() || 'Jugador';
+  const codigo = document.getElementById('codigo-sala-input').value.toUpperCase().trim();
+  if (codigo.length < 4) { mostrarNotif('Ingresá el código'); return; }
+  G.miNombre  = nombre;
+  G.miMazo    = MAZOS_INFO[mazoSelOnline].key;
+  G.modoJuego = 'online';
+  iniciarSocket();
+  G.socket.emit('unirse_sala', { codigo });
+}
+
+function iniciarSocket() {
+  if (G.socket) G.socket.disconnect();
+  G.socket = io();
+
+  G.socket.on('sala_creada', d => {
+    G.codigoSala = d.codigo;
+    document.getElementById('codigo-mostrar').textContent = d.codigo;
+    G.socket.emit('jugador_listo', {
+      codigo: d.codigo,
+      nombre: G.miNombre,
+      mazo:   CARTAS_DATA[G.miMazo].map(c => ({...c})),
+    });
+  });
+
+  G.socket.on('sala_unida', d => {
+    G.codigoSala = d.codigo;
+    G.socket.emit('jugador_listo', {
+      codigo: d.codigo,
+      nombre: G.miNombre,
+      mazo:   CARTAS_DATA[G.miMazo].map(c => ({...c})),
+    });
+    irA('pantalla-esperando');
+    document.getElementById('codigo-mostrar').textContent = d.codigo;
+    document.getElementById('estado-online-txt').textContent = 'Conectado — esperando inicio...';
+  });
+
+  G.socket.on('unido', d => {
+    G.miIdx = d.idx;
+  });
+
+  G.socket.on('inicio_partida', d => {
+    G.nombres     = d.nombres;
+    G.hp          = d.hp;
+    G.turnoActual = d.turno;
+    G.pa          = 2;
+    G.cartaSeleccionada = -1;
+    G.paralizado  = {};
+    G.esquivando  = {};
+    G.descarte    = [];
+    G.tablero = [
+      [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+      [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+    ];
+    // Mano
+    const miManoData = G.miIdx === 0 ? d.mano_0 : d.mano_1;
+    G.mano = miManoData.map(c => ({...c, defMax: c.defensa||0, floopUsado: false}));
+    G.manoRival = (G.miIdx === 0 ? d.mano_1 : d.mano_0).length;
+
+    irA('pantalla-juego');
+    renderTablero();
+    renderMano();
+    actualizarHeaderHP();
+    logMsg(`🌐 ${d.nombres[0]} vs ${d.nombres[1]} — ¡Partida online!`);
+    actualizarTurnoInfo();
+  });
+
+  G.socket.on('accion_rival', d => {
+    procesarAccionRival(d);
+  });
+
+  G.socket.on('cambio_turno', d => {
+    G.turnoActual = d.turno;
+    if (d.para_jugador === G.miIdx && d.carta_nueva) {
+      G.mano.push({...d.carta_nueva, defMax: d.carta_nueva.defensa||0, floopUsado: false});
+    }
+    if (d.para_jugador !== G.miIdx) {
+      G.manoRival++;
+    }
+    if (G.turnoActual === G.miIdx) {
+      G.pa = 2;
+      G.paralizado = {};
+      G.mano.forEach(c => c.floopUsado = false);
+      logMsg('── Tu turno ──');
+    } else {
+      logMsg(`── Turno de ${G.nombres[1 - G.miIdx]} ──`);
+      setTimeout(() => turnoIA_online(), 500);
+    }
+    renderTablero();
+    renderMano();
+    actualizarTurnoInfo();
+    actualizarHeaderHP();
+  });
+
+  G.socket.on('sync_estado', d => {
+    if (d.hp) G.hp = d.hp;
+    if (d.tablero) G.tablero[d.idx] = d.tablero;
+    renderTablero();
+    actualizarHeaderHP();
+  });
+
+  G.socket.on('fin_partida', d => {
+    mostrarFinPartida(d.ganador, d.perdedor);
+  });
+
+  G.socket.on('error', d => {
+    mostrarNotif('❌ ' + d.msg);
+    irA('pantalla-online');
+  });
+}
+
+function cancelarOnline() {
+  if (G.socket) G.socket.disconnect();
+  irA('pantalla-online');
+}
+
+function copiarCodigo() {
+  navigator.clipboard.writeText(G.codigoSala).then(() => mostrarNotif('¡Código copiado!'));
+}
+
+// ════════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════════
+
+function renderTablero() {
+  const rivalIdx   = G.miIdx === 0 ? 1 : 0;
+  const jugadorIdx = G.miIdx;
+
+  renderCarriles('carriles-rival',   rivalIdx,   true);
+  renderCarriles('carriles-jugador', jugadorIdx, false);
+}
+
+function renderCarriles(containerId, idx, esRival) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const carril = G.tablero[idx][i];
+    const div    = document.createElement('div');
+    div.className = 'carril';
+    div.dataset.carril = i;
+    div.dataset.idx    = idx;
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'carril-num';
+    numDiv.textContent = i + 1;
+    div.appendChild(numDiv);
+
+    if (carril.criatura) {
+      const c = carril.criatura;
+      const spCanvas = crearSpritePixelArt(c.nombre, esRival);
+      div.appendChild(spCanvas);
+
+      const info = document.createElement('div');
+      info.className = 'criatura-info';
+      info.innerHTML = `
+        <div class="criatura-nombre">${c.nombre}</div>
+        <div class="mini-barra"><div class="mini-barra-fill" style="width:${Math.max(0,(c.defensa/c.defMax)*100)}%"></div></div>
+        <div class="stats-row">
+          <span class="stat-atk">⚔${c.ataque}</span>
+          <span class="stat-def">🛡${c.defensa}</span>
+        </div>
+        ${c.floop && !c.floopUsado ? '<div class="floop-badge">✨FLOOP</div>' : ''}
+      `;
+      div.appendChild(info);
+    }
+
+    if (carril.edificio) {
+      const e = document.createElement('div');
+      e.className = 'edificio-tag';
+      e.textContent = '🏛 ' + carril.edificio.nombre.substring(0,12);
+      div.appendChild(e);
+    }
+
+    container.appendChild(div);
+  }
+}
+
+// ── Pixel art sprites ──────────────────────────────────────
+
+const SPRITE_PALETAS = {
+  "El Gaucho":      [[120,70,30],[220,170,110],[140,80,30],[200,40,40],[80,40,10]],
+  "Artigas":        [[200,160,30],[220,170,110],[20,40,120],[200,160,30],[10,10,80]],
+  "Luis Suárez":    [[40,80,200],[220,170,110],[255,255,255],[40,80,200],[0,0,0]],
+  "El Crack":       [[40,80,200],[220,170,110],[255,255,255],[255,255,255],[0,0,0]],
+  "El Murguero":    [[220,190,50],[220,170,110],[200,40,40],[210,100,20],[120,70,30]],
+  "El Hincha":      [[20,120,20],[220,170,110],[255,255,255],[10,80,10],[120,70,30]],
+  "Guerrero Charrúa":[[80,50,20],[220,170,110],[200,40,40],[80,50,20],[50,30,10]],
+  "El Cacique":     [[200,160,30],[220,170,110],[100,60,20],[200,40,40],[80,40,10]],
+  "José Batlle":    [[180,180,180],[220,170,110],[50,50,50],[180,180,180],[0,0,0]],
+  "default":        [[100,100,100],[220,170,110],[80,80,80],[60,60,60],[40,40,40]],
+};
+
+function crearSpritePixelArt(nombre, invertido=false) {
+  const canvas = document.createElement('canvas');
+  const sz = 8; const esc = 4;
+  canvas.width  = sz * esc;
+  canvas.height = sz * esc;
+  canvas.style.imageRendering = 'pixelated';
+  canvas.className = 'sprite';
+  canvas.style.margin = '4px auto';
+
+  const ctx = canvas.getContext('2d');
+  const pal = SPRITE_PALETAS[nombre] || SPRITE_PALETAS['default'];
+  const [c1,c2,c3,c4,c5] = pal.map(c => `rgb(${c[0]},${c[1]},${c[2]})`);
+
+  // Sprite genérico 8x8
+  const sprite = [
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,2,2,1,1,0],
+    [0,1,2,2,2,2,1,0],
+    [0,0,3,3,3,3,0,0],
+    [0,3,3,4,4,3,3,0],
+    [0,3,3,3,3,3,3,0],
+    [0,3,0,0,0,0,3,0],
+    [0,5,0,0,0,0,5,0],
+  ];
+  const cols = [null, c1, c2, c3, c4, c5];
+
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const v = sprite[y][x];
+      if (v > 0 && cols[v]) {
+        ctx.fillStyle = cols[v];
+        const px = invertido ? (7-x)*esc : x*esc;
+        ctx.fillRect(px, y*esc, esc, esc);
+      }
+    }
+  }
+  return canvas;
+}
+
+function renderMano() {
+  const container = document.getElementById('cartas-mano');
+  container.innerHTML = '';
+
+  G.mano.forEach((carta, i) => {
+    const div = document.createElement('div');
+    const tipoCls = carta.tipo === 'criatura' ? 'carta-criatura' : carta.tipo === 'hechizo' ? 'carta-hechizo' : 'carta-edificio';
+    div.className = `carta ${tipoCls}${i === G.cartaSeleccionada ? ' seleccionada' : ''}${carta.costo > G.pa ? ' no-pagable' : ''}`;
+
+    const statsHtml = carta.tipo === 'criatura'
+      ? `<div class="carta-stats"><span class="stat-atk">⚔${carta.ataque}</span><span class="stat-def">🛡${carta.defensa}</span></div>`
+      : '';
+    const floopHtml = carta.floop ? `<div class="carta-floop">✨</div>` : '';
+
+    div.innerHTML = `
+      <div class="carta-costo">${carta.costo}</div>
+      <div class="carta-nombre">${carta.nombre}</div>
+      <div class="carta-tipo-badge">${carta.tipo}</div>
+      ${statsHtml}
+      <div class="carta-desc">${carta.desc?.substring(0,35) || ''}</div>
+      ${floopHtml}
+    `;
+
+    div.onclick = () => seleccionarCarta(i);
+    div.oncontextmenu = (e) => { e.preventDefault(); mostrarDetalleCarta(i); };
+    container.appendChild(div);
+  });
+
+  document.getElementById('pa-badge').textContent = `${G.pa} PA`;
+  document.getElementById('btn-jugar').disabled = G.turnoActual !== G.miIdx;
+  document.getElementById('btn-floop').disabled = G.turnoActual !== G.miIdx;
+  document.getElementById('btn-fin').disabled   = G.turnoActual !== G.miIdx;
+}
+
+function actualizarHeaderHP() {
+  const miIdx    = G.miIdx;
+  const rivalIdx = 1 - miIdx;
+
+  document.getElementById('nombre-jugador-hdr').textContent = G.nombres[miIdx]    || 'Tú';
+  document.getElementById('nombre-rival-hdr').textContent   = G.nombres[rivalIdx] || 'Rival';
+
+  const hpMi    = G.hp[miIdx];
+  const hpRival = G.hp[rivalIdx];
+
+  const colHP = hp => hp > 15 ? 'hp-verde' : hp > 8 ? 'hp-amarillo' : 'hp-rojo';
+  document.getElementById('hp-jugador-hdr').textContent  = `${hpMi} ❤️`;
+  document.getElementById('hp-jugador-hdr').className    = `jugador-hp ${colHP(hpMi)}`;
+  document.getElementById('hp-rival-hdr').textContent    = `${hpRival} ❤️`;
+  document.getElementById('hp-rival-hdr').className      = `jugador-hp ${colHP(hpRival)}`;
+
+  document.getElementById('barra-jugador').style.width = `${(hpMi/25)*100}%`;
+  document.getElementById('barra-rival').style.width   = `${(hpRival/25)*100}%`;
+}
+
+function actualizarTurnoInfo() {
+  const esMiTurno = G.turnoActual === G.miIdx;
+  document.getElementById('turno-info').textContent = esMiTurno ? '⚡ TU TURNO' : `⏳ ${G.nombres[1-G.miIdx]}`;
+  document.getElementById('turno-info').style.color = esMiTurno ? '#4aee4a' : '#888';
+}
+
+// ════════════════════════════════════════════════════════════
+//  ACCIONES DEL JUGADOR
+// ════════════════════════════════════════════════════════════
+
+function seleccionarCarta(i) {
+  if (G.turnoActual !== G.miIdx) return;
+  G.cartaSeleccionada = (G.cartaSeleccionada === i) ? -1 : i;
+  renderMano();
+}
+
+function mostrarDetalleCarta(i) {
+  const c = G.mano[i];
+  G.cartaSeleccionada = i;
+  renderMano();
+
+  const statsHtml = c.tipo === 'criatura'
+    ? `<div class="carta-detalle-stats">
+        <div class="carta-detalle-stat"><span class="stat-val" style="color:#ff8080">${c.ataque}</span><span class="stat-lbl">ATK</span></div>
+        <div class="carta-detalle-stat"><span class="stat-val" style="color:#8080ff">${c.defensa}</span><span class="stat-lbl">DEF</span></div>
+        <div class="carta-detalle-stat"><span class="stat-val" style="color:var(--dorado)">${c.costo}</span><span class="stat-lbl">PA</span></div>
+       </div>`
+    : `<div class="carta-detalle-stats"><div class="carta-detalle-stat"><span class="stat-val" style="color:var(--dorado)">${c.costo}</span><span class="stat-lbl">PA</span></div></div>`;
+
+  document.getElementById('modal-carta-contenido').innerHTML = `
+    <div class="carta-detalle">
+      <div class="carta-detalle-nombre">${c.nombre}</div>
+      <div class="carta-detalle-tipo">${c.tipo.toUpperCase()}</div>
+      ${statsHtml}
+      <div class="carta-detalle-desc">${c.desc || ''}</div>
+      ${c.floop ? `<div class="carta-detalle-floop">✨ FLOOP: ${c.floop}</div>` : ''}
+    </div>
+  `;
+  document.getElementById('modal-carta').classList.add('activo');
+}
+
+function confirmarJugarCarta() {
+  cerrarModal('modal-carta');
+  jugarCarta();
+}
+
+function jugarCarta() {
+  if (G.turnoActual !== G.miIdx) return;
+  if (G.cartaSeleccionada < 0 || G.cartaSeleccionada >= G.mano.length) {
+    mostrarNotif('Seleccioná una carta primero');
+    return;
+  }
+
+  const carta = G.mano[G.cartaSeleccionada];
+  if (carta.costo > G.pa) {
+    mostrarNotif('No tenés PA suficientes');
+    return;
+  }
+
+  if (carta.tipo === 'criatura') {
+    const vacios = G.tablero[G.miIdx].map((c,i) => c.criatura ? null : i).filter(i => i !== null);
+    if (vacios.length === 0) { mostrarNotif('No hay carriles libres'); return; }
+    pedirCarril('¿En qué carril colocás la criatura?', vacios, num => {
+      G.tablero[G.miIdx][num].criatura = {...carta, defMax: carta.defensa, floopUsado: false};
+      gastarCarta(carta);
+      logMsg(`Colocaste '${carta.nombre}' en carril ${num+1}`);
+      if (G.modoJuego === 'online') sincronizarEstado();
+    });
+  } else if (carta.tipo === 'edificio') {
+    const vacios = G.tablero[G.miIdx].map((c,i) => c.edificio ? null : i).filter(i => i !== null);
+    if (vacios.length === 0) { mostrarNotif('No hay carriles libres para edificios'); return; }
+    pedirCarril('¿En qué carril construís el edificio?', vacios, num => {
+      G.tablero[G.miIdx][num].edificio = {...carta};
+      gastarCarta(carta);
+      logMsg(`Construiste '${carta.nombre}' en carril ${num+1}`);
+      if (G.modoJuego === 'online') sincronizarEstado();
+    });
+  } else if (carta.tipo === 'hechizo') {
+    aplicarHechizo(carta, G.cartaSeleccionada);
+  }
+}
+
+function gastarCarta(carta) {
+  G.pa -= carta.costo;
+  G.mano.splice(G.cartaSeleccionada, 1);
+  G.descarte.push(carta);
+  G.cartaSeleccionada = -1;
+  renderTablero();
+  renderMano();
+  actualizarHeaderHP();
+}
+
+function aplicarHechizo(carta, idx) {
+  const rivalIdx = 1 - G.miIdx;
+  const n = carta.nombre;
+
+  const ejecutar = () => {
+    if (n === 'El Mate' || n === 'El Asado') {
+      robarCartas(2);
+      logMsg('Robaste 2 cartas');
+    } else if (n === 'Gol de Vestuario') {
+      dañarRival(3); logMsg('¡3 daño directo al rival!');
+    } else if (n === 'El Maracanazo') {
+      dañarRival(4); logMsg('¡MARACANAZO! 4 daño directo');
+    } else if (n === 'Grito de Asencio') {
+      G.tablero[rivalIdx].forEach((c,i) => {
+        if (c.criatura) {
+          c.criatura.defensa -= 2;
+          if (c.criatura.defensa <= 0) { logMsg(`💀 '${c.criatura.nombre}' destruida!`); G.tablero[rivalIdx][i].criatura = null; }
+        }
+      });
+      logMsg('2 daño a todas las criaturas enemigas');
+    } else if (n === 'Contraataque') {
+      dañarRival(3); logMsg('Contraataque: 3 daño al rival');
+    } else if (n === 'Campaña Electoral') {
+      robarCartas(2); logMsg('Robaste 2 cartas');
+    } else if (n === 'Grito de Guerra') {
+      G.tablero[G.miIdx].forEach(c => { if (c.criatura) c.criatura.ataque += 1; });
+      logMsg('Criaturas aliadas +1 ATK');
+    } else if (n === 'Lanza Gaucha') {
+      const con = G.tablero[rivalIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+      if (con.length === 0) { dañarRival(4); logMsg('4 daño directo'); return; }
+      pedirCarrilRival('Lanza Gaucha: ¿a qué carril?', con, num => {
+        const obj = G.tablero[rivalIdx][num].criatura;
+        obj.defensa -= 4;
+        if (obj.defensa <= 0) { logMsg(`💀 '${obj.nombre}' destruida!`); G.tablero[rivalIdx][num].criatura = null; }
+        else logMsg(`4 daño a '${obj.nombre}'`);
+        finalizarHechizo(carta, idx);
+      });
+      return;
+    } else if (n === 'Campo de Pesadillas') {
+      const con = G.tablero[rivalIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+      if (con.length === 0) { mostrarNotif('El rival no tiene criaturas'); return; }
+      pedirCarrilRival('Campo de Pesadillas: ¿a qué carril?', con, num => {
+        G.tablero[rivalIdx][num].criatura.ataque = Math.max(0, G.tablero[rivalIdx][num].criatura.ataque - 2);
+        logMsg(`'${G.tablero[rivalIdx][num].criatura.nombre}' -2 ATK`);
+        finalizarHechizo(carta, idx);
+      });
+      return;
+    } else if (n === 'La Murga' || n === 'Reforma Agraria') {
+      const con = G.tablero[rivalIdx].map((c,i) => c.edificio ? i : null).filter(i => i !== null);
+      if (con.length === 0) { mostrarNotif('El rival no tiene edificios'); return; }
+      pedirCarrilRival('¿Qué edificio destruís?', con, num => {
+        logMsg(`Destruiste '${G.tablero[rivalIdx][num].edificio.nombre}'`);
+        G.tablero[rivalIdx][num].edificio = null;
+        finalizarHechizo(carta, idx);
+      });
+      return;
+    } else if (n === 'Boleadoras') {
+      const con = G.tablero[rivalIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+      if (con.length === 0) { mostrarNotif('El rival no tiene criaturas'); return; }
+      pedirCarrilRival('Boleadoras: ¿qué criatura inmovilizás?', con, num => {
+        G.paralizado[num] = true;
+        logMsg(`Criatura en carril ${num+1} inmovilizada`);
+        finalizarHechizo(carta, idx);
+      });
+      return;
+    } else if (n === 'Decreto de Ley') {
+      G.tablero[rivalIdx].forEach(c => { if (c.criatura) c.criatura.floopUsado = true; });
+      logMsg('Criaturas enemigas no pueden usar FLOOP');
+    } else if (n === 'La Garra Charrúa') {
+      const con = G.tablero[G.miIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+      if (con.length === 0) { mostrarNotif('No tenés criaturas'); return; }
+      pedirCarril('La Garra: ¿qué criatura protegés?', con, num => {
+        G.tablero[G.miIdx][num].criatura._garra = true;
+        logMsg(`'${G.tablero[G.miIdx][num].criatura.nombre}' no morirá este turno`);
+        finalizarHechizo(carta, idx);
+      });
+      return;
+    } else if (n === 'Espiritu Ancestral') {
+      const crs = G.descarte.filter(c => c.tipo === 'criatura');
+      if (crs.length === 0) { mostrarNotif('No tenés criaturas en el descarte'); return; }
+      const rec = crs[crs.length-1];
+      rec.defensa = 2; rec.floopUsado = false;
+      G.mano.push(rec);
+      G.descarte.splice(G.descarte.lastIndexOf(rec), 1);
+      logMsg(`'${rec.nombre}' revive con 2 DEF`);
+    } else {
+      logMsg(`Hechizo '${n}' usado`);
+    }
+    finalizarHechizo(carta, idx);
+  };
+  ejecutar();
+}
+
+function finalizarHechizo(carta, idx) {
+  G.pa -= carta.costo;
+  G.mano.splice(idx, 1);
+  G.descarte.push(carta);
+  G.cartaSeleccionada = -1;
+  renderTablero();
+  renderMano();
+  actualizarHeaderHP();
+  verificarVictoria();
+  if (G.modoJuego === 'online') sincronizarEstado();
+}
+
+function activarFloop() {
+  if (G.turnoActual !== G.miIdx) return;
+  const floopables = G.tablero[G.miIdx].map((c,i) => (c.criatura && c.criatura.floop && !c.criatura.floopUsado) ? i : null).filter(i => i !== null);
+  if (floopables.length === 0) { mostrarNotif('No tenés criaturas con FLOOP disponible'); return; }
+  pedirCarril('¿Qué criatura floopás?', floopables, num => {
+    const criatura = G.tablero[G.miIdx][num].criatura;
+    aplicarFloopJugador(num, criatura);
+    criatura.floopUsado = true;
+    renderTablero();
+    renderMano();
+    actualizarHeaderHP();
+    verificarVictoria();
+    if (G.modoJuego === 'online') sincronizarEstado();
+  });
+}
+
+function aplicarFloopJugador(num, criatura) {
+  const rivalIdx = 1 - G.miIdx;
+  const n = criatura.nombre;
+
+  if (n === 'El Gaucho' || n === 'Guerrero Charrúa') {
+    criatura.ataque += 2; logMsg(`${n}: +2 ATK (ahora ${criatura.ataque})`);
+  } else if (n === 'Artigas' || n === 'El Tamborilero' || n === 'Diego Forlán') {
+    G.tablero[G.miIdx].forEach(c => { if (c.criatura) c.criatura.ataque += 1; });
+    logMsg(`${n}: todas las criaturas aliadas +1 ATK`);
+  } else if (n === 'La Curandera' || n === 'Caballero Azul') {
+    const aliadas = G.tablero[G.miIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+    if (aliadas.length > 0) {
+      const min = aliadas.reduce((a,b) => G.tablero[G.miIdx][a].criatura.defensa < G.tablero[G.miIdx][b].criatura.defensa ? a : b);
+      G.tablero[G.miIdx][min].criatura.defensa = Math.min(G.tablero[G.miIdx][min].criatura.defensa + 3, G.tablero[G.miIdx][min].criatura.defMax);
+      logMsg(`${n}: cura 3 DEF`);
+    }
+  } else if (n === 'El Crack') {
+    G.esquivando[num] = true; logMsg(`${n}: esquiva el próximo ataque`);
+  } else if (n === 'El Murguero') {
+    robarCartas(1); dañarRival(1); logMsg(`${n}: roba 1 carta y 1 daño directo`);
+  } else if (n === 'El Chivito') {
+    G.tablero[G.miIdx].forEach(c => { if (c.criatura) c.criatura.defensa = Math.min(c.criatura.defensa+2, c.criatura.defMax); });
+    logMsg(`${n}: cura 2 DEF a todas las criaturas aliadas`);
+  } else if (n === 'La Vedette') {
+    const con = G.tablero[rivalIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+    if (con.length > 0) {
+      pedirCarrilRival('La Vedette: ¿a qué criatura?', con, idx2 => {
+        G.tablero[rivalIdx][idx2].criatura.ataque = Math.max(0, G.tablero[rivalIdx][idx2].criatura.ataque - 2);
+        logMsg(`${n}: criatura enemiga -2 ATK`);
+        criatura.floopUsado = true;
+        renderTablero();
+        if (G.modoJuego === 'online') sincronizarEstado();
+      });
+      return;
+    }
+  } else if (n === 'Arquero Dan' || n === 'Arquero Charrúa') {
+    dañarRival(n === 'Arquero Dan' ? 2 : 3); logMsg(`${n}: daño directo`);
+  } else if (n === 'Legión Terricola') {
+    G.tablero[rivalIdx].forEach((c,i) => {
+      if (c.criatura) {
+        c.criatura.defensa -= criatura.ataque;
+        if (c.criatura.defensa <= 0) { logMsg(`💀 '${c.criatura.nombre}' destruida!`); G.tablero[rivalIdx][i].criatura = null; }
+      }
+    });
+    logMsg(`${n}: ataca todas las criaturas enemigas`);
+  } else if (n === 'El Cacique') {
+    G.hp[G.miIdx] = Math.max(0, G.hp[G.miIdx] - 4);
+    G.tablero[G.miIdx].forEach(c => { if (c.criatura) c.criatura.ataque += 2; });
+    logMsg(`${n}: -4 HP propios, criaturas aliadas +2 ATK`);
+  } else if (n === 'El Chamán') {
+    robarCartas(2); G.hp[G.miIdx] = Math.min(30, G.hp[G.miIdx] + 3);
+    logMsg(`${n}: roba 2 cartas y cura 3 HP`);
+  } else if (n === 'Luis Suárez') {
+    dañarRival(3); logMsg(`${n}: ¡GOOOL! 3 daño directo`);
+  } else if (n === 'Edinson Cavani') {
+    const aliadas = G.tablero[G.miIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+    if (aliadas.length > 0) {
+      const min = aliadas.reduce((a,b) => G.tablero[G.miIdx][a].criatura.defensa < G.tablero[G.miIdx][b].criatura.defensa ? a : b);
+      G.tablero[G.miIdx][min].criatura.defensa = Math.min(G.tablero[G.miIdx][min].criatura.defensa + 3, G.tablero[G.miIdx][min].criatura.defMax);
+    }
+    logMsg(`${n}: cura 3 DEF`);
+  } else if (n === 'El Volante') {
+    robarCartas(1); logMsg(`${n}: roba 1 carta`);
+  } else if (n === 'El Senador') {
+    G.pa++; logMsg(`${n}: +1 PA extra`);
+  } else if (n === 'El Caudillo') {
+    const n2 = G.tablero[G.miIdx].filter(c => c.criatura).length;
+    robarCartas(n2); logMsg(`${n}: roba ${n2} cartas`);
+  } else if (n === 'La Payadora' || n === 'La Guerrera') {
+    const con = G.tablero[rivalIdx].map((c,i) => c.criatura ? i : null).filter(i => i !== null);
+    if (con.length > 0) {
+      pedirCarrilRival(`${n}: ¿qué criatura paralizás?`, con, idx2 => {
+        G.paralizado[idx2] = true; logMsg(`${n}: criatura paralizada`);
+        criatura.floopUsado = true;
+        renderTablero();
+        if (G.modoJuego === 'online') sincronizarEstado();
+      });
+      return;
+    }
+  } else {
+    logMsg(`✨ FLOOP '${n}' activado`);
+  }
+}
+
+function terminarTurno() {
+  if (G.turnoActual !== G.miIdx) return;
+
+  // Fase de batalla
+  faseBatalla();
+  verificarVictoria();
+  if (!document.getElementById('fin-overlay').classList.contains('activo')) {
+    if (G.modoJuego === 'ia') {
+      G.turnoActual = 1 - G.miIdx;
+      actualizarTurnoInfo();
+      setTimeout(() => turnoIA(), 800);
+    } else {
+      G.socket.emit('fin_turno', { codigo: G.codigoSala });
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  BATALLA
+// ════════════════════════════════════════════════════════════
+
+function faseBatalla() {
+  const atacIdx = G.miIdx;
+  const defIdx  = 1 - G.miIdx;
+
+  for (let i = 0; i < 4; i++) {
+    const carrilAtk = G.tablero[atacIdx][i];
+    if (!carrilAtk.criatura) continue;
+    const atk = carrilAtk.criatura;
+
+    if (G.paralizado[i]) { logMsg(`Carril ${i+1}: '${atk.nombre}' paralizada`); continue; }
+    if (G.esquivando[i]) { G.esquivando[i] = false; continue; }
+
+    const carrilDef = G.tablero[defIdx][i];
+    if (carrilDef.criatura) {
+      const def = carrilDef.criatura;
+      logMsg(`Carril ${i+1}: '${atk.nombre}' vs '${def.nombre}'`);
+      def.defensa -= atk.ataque;
+      atk.defensa -= def.ataque;
+
+      if (def.defensa <= 0 && !def._garra) {
+        logMsg(`💀 '${def.nombre}' destruida!`);
+        G.tablero[defIdx][i].criatura = null;
+      } else if (def.defensa <= 0) {
+        def.defensa = 1; def._garra = false;
+      }
+      if (atk.defensa <= 0 && !atk._garra) {
+        logMsg(`💀 '${atk.nombre}' destruida!`);
+        G.tablero[atacIdx][i].criatura = null;
+      } else if (atk.defensa <= 0) {
+        atk.defensa = 1; atk._garra = false;
+      }
+    } else {
+      let daño = atk.ataque;
+      if (carrilAtk.edificio?.nombre === 'La Estancia') daño++;
+      if (carrilAtk.edificio?.nombre === 'El Estadio')  daño += 2;
+      if (carrilAtk.edificio?.nombre === 'El Centenario') daño += 2;
+      G.hp[defIdx] = Math.max(0, G.hp[defIdx] - daño);
+      logMsg(`Carril ${i+1}: '${atk.nombre}' → ${daño} daño directo!`);
+      mostrarNotif(`-${daño} HP al rival!`);
+    }
+
+    // La Rambla
+    if (carrilDef.edificio?.nombre === 'La Rambla') {
+      G.hp[atacIdx] = Math.max(0, G.hp[atacIdx] - 1);
+    }
+  }
+
+  G.paralizado = {};
+  renderTablero();
+  actualizarHeaderHP();
+}
+
+// ════════════════════════════════════════════════════════════
+//  IA
+// ════════════════════════════════════════════════════════════
+
+function turnoIA() {
+  logMsg(`🤖 Turno de ${G.nombres[1]}...`);
+  document.getElementById('turno-info').textContent = '🤖 IA pensando...';
+
+  setTimeout(() => {
+    const iaIdx  = 1 - G.miIdx;
+    let pa = 2;
+    G.tablero[iaIdx].forEach(c => { if (c.criatura) c.criatura.floopUsado = false; });
+
+    // Robar carta
+    if (G.mazoRival.length > 0) {
+      G.manoRival = Math.min(G.manoRival + 1, 10);
+    }
+
+    // IA juega criaturas en carriles vacíos
+    const mazoCopia = [...(CARTAS_DATA[Object.keys(CARTAS_DATA)[Math.floor(Math.random()*5)]] || CARTAS_DATA.oriental)];
+    mezclar(mazoCopia);
+    let intentos = 0;
+    while (pa > 0 && intentos < 20) {
+      intentos++;
+      const carrilVacio = G.tablero[iaIdx].findIndex(c => !c.criatura);
+      if (carrilVacio === -1) break;
+      const carta = mazoCopia.find(c => c.tipo === 'criatura' && c.costo <= pa);
+      if (!carta) break;
+      G.tablero[iaIdx][carrilVacio].criatura = {...carta, defMax: carta.defensa, floopUsado: false};
+      pa -= carta.costo;
+      logMsg(`🤖 IA coloca '${carta.nombre}' en carril ${carrilVacio+1}`);
+    }
+
+    // IA ataca
+    faseBatallaIA();
+    verificarVictoria();
+
+    if (!document.getElementById('fin-overlay').classList.contains('activo')) {
+      G.turnoActual = G.miIdx;
+      G.pa = 2;
+      G.mano.forEach(c => c.floopUsado = false);
+      if (G.mazo.length > 0) {
+        G.mano.push({...G.mazo.pop(), defMax: 0, floopUsado: false});
+        G.mano[G.mano.length-1].defMax = G.mano[G.mano.length-1].defensa || 0;
+      }
+      renderTablero();
+      renderMano();
+      actualizarTurnoInfo();
+      actualizarHeaderHP();
+      logMsg('── Tu turno ──');
+    }
+  }, 1200);
+}
+
+function faseBatallaIA() {
+  const atacIdx = 1 - G.miIdx;
+  const defIdx  = G.miIdx;
+
+  for (let i = 0; i < 4; i++) {
+    const carrilAtk = G.tablero[atacIdx][i];
+    if (!carrilAtk.criatura) continue;
+    const atk = carrilAtk.criatura;
+
+    const carrilDef = G.tablero[defIdx][i];
+    if (carrilDef.criatura) {
+      const def = carrilDef.criatura;
+      logMsg(`Carril ${i+1}: '${atk.nombre}' vs '${def.nombre}'`);
+      def.defensa -= atk.ataque;
+      atk.defensa -= def.ataque;
+      if (def.defensa <= 0) { logMsg(`💀 '${def.nombre}' destruida!`); G.tablero[defIdx][i].criatura = null; }
+      if (atk.defensa <= 0) { logMsg(`💀 '${atk.nombre}' destruida!`); G.tablero[atacIdx][i].criatura = null; }
+    } else {
+      G.hp[defIdx] = Math.max(0, G.hp[defIdx] - atk.ataque);
+      logMsg(`🤖 Carril ${i+1}: '${atk.nombre}' → ${atk.ataque} daño directo!`);
+      mostrarNotif(`💥 -${atk.ataque} HP!`);
+    }
+  }
+  renderTablero();
+  actualizarHeaderHP();
+}
+
+function turnoIA_online() {
+  // En online, la IA del lado del jugador 0
+  // Esta función no se usa normalmente
+}
+
+function procesarAccionRival(data) {
+  // Procesar acciones del rival en modo online
+  if (data.accion === 'colocar_criatura') {
+    G.tablero[1-G.miIdx][data.carril].criatura = data.carta;
+    logMsg(`Rival colocó '${data.carta.nombre}' en carril ${data.carril+1}`);
+  } else if (data.accion === 'daño_directo') {
+    G.hp[G.miIdx] = Math.max(0, G.hp[G.miIdx] - data.daño);
+    mostrarNotif(`-${data.daño} HP!`);
+  }
+  renderTablero();
+  actualizarHeaderHP();
+  verificarVictoria();
+}
+
+function sincronizarEstado() {
+  if (!G.socket) return;
+  G.socket.emit('sync_estado', {
+    codigo:  G.codigoSala,
+    idx:     G.miIdx,
+    hp:      G.hp,
+    tablero: G.tablero[G.miIdx],
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════
+
+function robarCartas(n) {
+  for (let i = 0; i < n; i++) {
+    if (G.mazo.length > 0) {
+      const c = G.mazo.pop();
+      G.mano.push({...c, defMax: c.defensa||0, floopUsado: false});
+    }
+  }
+  renderMano();
+}
+
+function dañarRival(n) {
+  const rivalIdx = 1 - G.miIdx;
+  G.hp[rivalIdx] = Math.max(0, G.hp[rivalIdx] - n);
+  actualizarHeaderHP();
+}
+
+function mezclar(arr) {
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pedirCarril(titulo, carriles, callback) {
+  const modal = document.getElementById('modal-carril');
+  document.getElementById('modal-carril-titulo').textContent = titulo;
+  const opciones = document.getElementById('modal-carril-opciones');
+  opciones.innerHTML = '';
+  carriles.forEach(i => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-verde';
+    btn.style.margin = '4px 0';
+    const c = G.tablero[G.miIdx][i];
+    btn.textContent = `Carril ${i+1}${c.criatura ? ' — ' + c.criatura.nombre : ' (vacío)'}`;
+    btn.onclick = () => { cerrarModal('modal-carril'); callback(i); };
+    opciones.appendChild(btn);
+  });
+  modal.classList.add('activo');
+}
+
+function pedirCarrilRival(titulo, carriles, callback) {
+  const rivalIdx = 1 - G.miIdx;
+  const modal = document.getElementById('modal-carril');
+  document.getElementById('modal-carril-titulo').textContent = titulo;
+  const opciones = document.getElementById('modal-carril-opciones');
+  opciones.innerHTML = '';
+  carriles.forEach(i => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-rojo';
+    btn.style.margin = '4px 0';
+    const c = G.tablero[rivalIdx][i];
+    btn.textContent = `Carril ${i+1} — ${c.criatura?.nombre || c.edificio?.nombre || 'vacío'}`;
+    btn.onclick = () => { cerrarModal('modal-carril'); callback(i); };
+    opciones.appendChild(btn);
+  });
+  modal.classList.add('activo');
+}
+
+function cerrarModal(id) {
+  document.getElementById(id).classList.remove('activo');
+}
+
+function logMsg(msg) {
+  const log = document.getElementById('log-juego');
+  const msgs = log.querySelectorAll('.log-msg');
+  msgs.forEach(m => m.classList.remove('nuevo'));
+  if (msgs.length > 8) msgs[0].remove();
+  const div = document.createElement('div');
+  div.className = 'log-msg nuevo';
+  div.textContent = msg;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function mostrarNotif(msg) {
+  const n = document.createElement('div');
+  n.className = 'notif';
+  n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 2100);
+}
+
+function verificarVictoria() {
+  if (G.hp[0] <= 0 || G.hp[1] <= 0) {
+    const ganadorIdx = G.hp[0] > 0 ? 0 : 1;
+    const perdedorIdx = 1 - ganadorIdx;
+    mostrarFinPartida(G.nombres[ganadorIdx], G.nombres[perdedorIdx]);
+  }
+}
+
+function mostrarFinPartida(ganador, perdedor) {
+  document.getElementById('fin-ganador').textContent  = `¡${ganador} gana! 😎`;
+  document.getElementById('fin-perdedor').textContent = `${perdedor} es el DWEEB 😔`;
+  document.getElementById('fin-overlay').classList.add('activo');
+}
+
+function volverAlMenu() {
+  document.getElementById('fin-overlay').classList.remove('activo');
+  if (G.socket) G.socket.disconnect();
+  irA('pantalla-menu');
+}
+</script>
+</body>
+</html>

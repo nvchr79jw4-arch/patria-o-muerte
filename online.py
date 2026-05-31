@@ -18,7 +18,7 @@ from carta   import Carta
 
 # ── Configuración ──────────────────────────────────────────
 SERVIDOR_LOCAL   = "ws://localhost:8765"
-SERVIDOR_RAILWAY = ""  # se llena cuando subas a Railway
+SERVIDOR_RAILWAY = "wss://patria-o-muerte-production.up.railway.app"  # se llena cuando subas a Railway
 
 # ── Estado de conexión ─────────────────────────────────────
 
