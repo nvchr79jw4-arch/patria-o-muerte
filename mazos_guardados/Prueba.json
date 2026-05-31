@@ -1,0 +1,95 @@
+{
+  "nombre": "Prueba",
+  "cartas": [
+    {
+      "nombre": "Lanza Gaucha",
+      "tipo": "hechizo",
+      "costo": 1,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "Inflige 4 de daño a una criatura enemiga",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "Reforma Agraria",
+      "tipo": "hechizo",
+      "costo": 1,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "Destruye el edificio enemigo con menos DEF",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "Artigas",
+      "tipo": "criatura",
+      "costo": 2,
+      "ataque": 5,
+      "defensa": 7,
+      "descripcion": "El Protector de los Pueblos Libres",
+      "desc_floop": "Todas las criaturas aliadas ganan +1 ATK"
+    },
+    {
+      "nombre": "Grito de Asencio",
+      "tipo": "hechizo",
+      "costo": 2,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "Todas las criaturas enemigas reciben 2 de daño",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "Gol de Vestuario",
+      "tipo": "hechizo",
+      "costo": 1,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "Inflige 5 de daño directo al rival",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "El Maracanazo",
+      "tipo": "hechizo",
+      "costo": 2,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "El golpe historico. 7 daño directo al rival",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "Campaña Electoral",
+      "tipo": "hechizo",
+      "costo": 2,
+      "ataque": 0,
+      "defensa": 0,
+      "descripcion": "Roba 3 cartas",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "La Estancia",
+      "tipo": "edificio",
+      "costo": 2,
+      "ataque": 0,
+      "defensa": 6,
+      "descripcion": "Las criaturas aliadas en este carril +1 ATK",
+      "desc_floop": ""
+    },
+    {
+      "nombre": "Luis Suárez",
+      "tipo": "criatura",
+      "costo": 2,
+      "ataque": 6,
+      "defensa": 5,
+      "descripcion": "El pistolero. Gol cuando mas duele",
+      "desc_floop": "5 daño directo al rival — ¡GOOOL!"
+    },
+    {
+      "nombre": "El Chivito",
+      "tipo": "criatura",
+      "costo": 2,
+      "ataque": 4,
+      "defensa": 6,
+      "descripcion": "El sanguche más poderoso del mundo",
+      "desc_floop": "Cura 2 DEF a todas las criaturas aliadas"
+    }
+  ]
+}
