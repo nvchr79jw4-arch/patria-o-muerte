@@ -742,7 +742,7 @@ function unirseASala() {
 
 function iniciarSocket() {
   if (G.socket) G.socket.disconnect();
-  G.socket = io();
+  G.socket = io('https://patria-o-muerte-production.up.railway.app');
 
   G.socket.on('sala_creada', d => {
     G.codigoSala = d.codigo;
