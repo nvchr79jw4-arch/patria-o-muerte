@@ -13,7 +13,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 
 app = Flask(__name__, static_folder='web/static', template_folder='web')
 app.config['SECRET_KEY'] = 'patria-o-muerte-2024'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 PORT = int(os.environ.get("PORT", 5000))
 
@@ -77,7 +77,7 @@ def on_disconnect():
             break
 
 @socketio.on('crear_sala')
-def on_crear_sala(data):
+def on_crear_sala(data=None):
     from flask import request
     codigo = generar_codigo()
     while codigo in salas:
