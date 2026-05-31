@@ -111,15 +111,26 @@ body {
   margin: 4px 0;
 }
 .carriles-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
-  margin: 4px 0;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;
+  margin: 3px 0;
+}
+.carriles-grid-fila2 {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;
+  margin: 0 0 3px 0;
+  border-top: 1px dashed #2a4a2a;
+  padding-top: 3px;
 }
 .carril {
   background: rgba(0,0,0,0.3); border: 1px solid #2a4a2a;
-  border-radius: 8px; min-height: 110px; padding: 4px;
+  border-radius: 6px; min-height: 90px; padding: 3px;
   display: flex; flex-direction: column; align-items: center;
   position: relative; cursor: pointer; transition: all 0.15s;
 }
+.carril.fila-trasera {
+  background: rgba(0,20,0,0.4); border-color: #1a3a1a;
+  min-height: 75px;
+}
+.carril.fila-trasera .carril-num { color: #2a5a2a; }
 .carril:active { transform: scale(0.97); }
 .carril.seleccionable { border-color: var(--amarillo); background: rgba(200,160,32,0.1); }
 .carril.seleccionable::after {
@@ -412,11 +423,15 @@ canvas.sprite { image-rendering: pixelated; display: block; }
 
   <!-- Campo -->
   <div class="campo">
-    <!-- Carriles rival -->
-    <div class="carriles-grid" id="carriles-rival"></div>
+    <!-- Carriles rival fila delantera -->
+    <div class="carriles-grid" id="carriles-rival-front"></div>
+    <!-- Carriles rival fila trasera -->
+    <div class="carriles-grid-fila2" id="carriles-rival-back"></div>
     <div class="linea-central">── CAMPO DE BATALLA ──</div>
-    <!-- Carriles jugador -->
-    <div class="carriles-grid" id="carriles-jugador"></div>
+    <!-- Carriles jugador fila trasera -->
+    <div class="carriles-grid-fila2" id="carriles-jugador-back"></div>
+    <!-- Carriles jugador fila delantera -->
+    <div class="carriles-grid" id="carriles-jugador-front"></div>
   </div>
 
   <!-- Acciones -->
@@ -689,15 +704,25 @@ function iniciarVsIA() {
 
   G.nombres     = [nombre, 'El Gaucho Cibernético'];
   G.hp          = [25, 25];
-  G.pa          = 2;
+  G.pa          = 3;
   G.turnoActual = 0;
   G.cartaSeleccionada = -1;
   G.paralizado  = {};
   G.esquivando  = {};
   G.descarte    = [];
   G.tablero = [
-    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
-    [{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null}],
+    [
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+    ],
+    [
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+      {criatura:null,edificio:null},{criatura:null,edificio:null},{criatura:null,edificio:null},
+    ],
   ];
 
   // Armar mazos
@@ -809,7 +834,7 @@ function iniciarSocket() {
       G.manoRival++;
     }
     if (G.turnoActual === G.miIdx) {
-      G.pa = 2;
+      G.pa = Math.min(6, (G.pa || 0) + 3);  // acumula hasta 6
       G.paralizado = {};
       G.mano.forEach(c => c.floopUsado = false);
       logMsg('── Tu turno ──');
@@ -857,17 +882,20 @@ function renderTablero() {
   const rivalIdx   = G.miIdx === 0 ? 1 : 0;
   const jugadorIdx = G.miIdx;
 
-  renderCarriles('carriles-rival',   rivalIdx,   true);
-  renderCarriles('carriles-jugador', jugadorIdx, false);
+  renderCarrilesFila('carriles-rival-front',   rivalIdx,   true,  0, 6);
+  renderCarrilesFila('carriles-rival-back',    rivalIdx,   true,  6, 12, true);
+  renderCarrilesFila('carriles-jugador-back',  jugadorIdx, false, 6, 12, true);
+  renderCarrilesFila('carriles-jugador-front', jugadorIdx, false, 0, 6);
 }
 
-function renderCarriles(containerId, idx, esRival) {
+function renderCarrilesFila(containerId, idx, esRival, desde, hasta, esTrasera=false) {
   const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = '';
-  for (let i = 0; i < 4; i++) {
+  for (let i = desde; i < hasta; i++) {
     const carril = G.tablero[idx][i];
     const div    = document.createElement('div');
-    div.className = 'carril';
+    div.className = 'carril' + (esTrasera ? ' fila-trasera' : '');
     div.dataset.carril = i;
     div.dataset.idx    = idx;
 
@@ -883,28 +911,30 @@ function renderCarriles(containerId, idx, esRival) {
 
       const info = document.createElement('div');
       info.className = 'criatura-info';
-      info.innerHTML = `
-        <div class="criatura-nombre">${c.nombre}</div>
-        <div class="mini-barra"><div class="mini-barra-fill" style="width:${Math.max(0,(c.defensa/c.defMax)*100)}%"></div></div>
+      info.innerHTML = \`
+        <div class="criatura-nombre">\${c.nombre}</div>
+        <div class="mini-barra"><div class="mini-barra-fill" style="width:\${Math.max(0,(c.defensa/c.defMax)*100)}%"></div></div>
         <div class="stats-row">
-          <span class="stat-atk">⚔${c.ataque}</span>
-          <span class="stat-def">🛡${c.defensa}</span>
+          <span class="stat-atk">⚔\${c.ataque}</span>
+          <span class="stat-def">🛡\${c.defensa}</span>
         </div>
-        ${c.floop && !c.floopUsado ? '<div class="floop-badge">✨FLOOP</div>' : ''}
-      `;
+        \${c.floop && !c.floopUsado ? '<div class="floop-badge">✨FLOOP</div>' : ''}
+      \`;
       div.appendChild(info);
     }
 
     if (carril.edificio) {
       const e = document.createElement('div');
       e.className = 'edificio-tag';
-      e.textContent = '🏛 ' + carril.edificio.nombre.substring(0,12);
+      e.textContent = '🏛 ' + carril.edificio.nombre.substring(0,10);
       div.appendChild(e);
     }
 
     container.appendChild(div);
   }
 }
+
+
 
 // ── Pixel art sprites ──────────────────────────────────────
 
@@ -921,43 +951,53 @@ const SPRITE_PALETAS = {
   "default":        [[100,100,100],[220,170,110],[80,80,80],[60,60,60],[40,40,40]],
 };
 
+const SPRITE_IMAGENES = {
+  "El Gaucho":          "sprites/gaucho_naranja.jpg",
+  "El Matrero":         "sprites/matrero.jpg",
+  "El Blandengue":      "sprites/blandengue.jpg",
+  "Artigas":            "sprites/artigas.jpg",
+  "La Curandera":       "sprites/curandera.jpg",
+  "La Payadora":        "sprites/payadora.jpg",
+  "El Arquero":         "sprites/arquero.jpg",
+  "El 9":               "sprites/crack.jpg",
+  "Luis Suárez":        "sprites/crack.jpg",
+  "Diego Forlán":       "sprites/crack.jpg",
+  "Edinson Cavani":     "sprites/crack.jpg",
+  "El Volante":         "sprites/gaucho_azul.jpg",
+  "El Crack":           "sprites/crack.jpg",
+  "José Batlle":        "sprites/artigas.jpg",
+  "El Caudillo":        "sprites/artigas.jpg",
+  "El Cacique":         "sprites/artigas.jpg",
+  "Guerrero Charrúa":   "sprites/blandengue.jpg",
+  "La Guerrera":        "sprites/payadora.jpg",
+  "El Chamán":          "sprites/curandera.jpg",
+  "Arquero Charrúa":    "sprites/gaucho_azul.jpg",
+  "El Último Charrúa":  "sprites/gaucho_poncho.jpg",
+  "El Segador":         "sprites/gaucho_oscuro.jpg",
+  "El Hincha":          "sprites/crack.jpg",
+  "El Murguero":        "sprites/payadora.jpg",
+  "El Tamborilero":     "sprites/gaucho_oscuro.jpg",
+  "El Chivito":         "sprites/gaucho_naranja.jpg",
+  "La Vedette":         "sprites/payadora.jpg",
+  "El Senador":         "sprites/artigas.jpg",
+  "La Milica":          "sprites/blandengue.jpg",
+  "El Colorado":        "sprites/gaucho_naranja.jpg",
+  "El Blanco":          "sprites/matrero.jpg",
+};
+
 function crearSpritePixelArt(nombre, invertido=false) {
-  const canvas = document.createElement('canvas');
-  const sz = 8; const esc = 4;
-  canvas.width  = sz * esc;
-  canvas.height = sz * esc;
-  canvas.style.imageRendering = 'pixelated';
-  canvas.className = 'sprite';
-  canvas.style.margin = '4px auto';
-
-  const ctx = canvas.getContext('2d');
-  const pal = SPRITE_PALETAS[nombre] || SPRITE_PALETAS['default'];
-  const [c1,c2,c3,c4,c5] = pal.map(c => `rgb(${c[0]},${c[1]},${c[2]})`);
-
-  // Sprite genérico 8x8
-  const sprite = [
-    [0,0,1,1,1,1,0,0],
-    [0,1,1,2,2,1,1,0],
-    [0,1,2,2,2,2,1,0],
-    [0,0,3,3,3,3,0,0],
-    [0,3,3,4,4,3,3,0],
-    [0,3,3,3,3,3,3,0],
-    [0,3,0,0,0,0,3,0],
-    [0,5,0,0,0,0,5,0],
-  ];
-  const cols = [null, c1, c2, c3, c4, c5];
-
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const v = sprite[y][x];
-      if (v > 0 && cols[v]) {
-        ctx.fillStyle = cols[v];
-        const px = invertido ? (7-x)*esc : x*esc;
-        ctx.fillRect(px, y*esc, esc, esc);
-      }
-    }
-  }
-  return canvas;
+  const img = document.createElement('img');
+  const src = SPRITE_IMAGENES[nombre] || 'sprites/gaucho_naranja.jpg';
+  img.src    = src;
+  img.style.width = '48px';
+  img.style.height = '56px';
+  img.style.objectFit = 'contain';
+  img.style.display = 'block';
+  img.style.margin = '2px auto';
+  img.style.imageRendering = 'pixelated';
+  if (invertido) img.style.transform = 'scaleX(-1)';
+  img.alt = nombre;
+  return img;
 }
 
 function renderMano() {
@@ -1074,7 +1114,7 @@ function jugarCarta() {
   }
 
   if (carta.tipo === 'criatura') {
-    const vacios = G.tablero[G.miIdx].map((c,i) => c.criatura ? null : i).filter(i => i !== null);
+    const vacios = G.tablero[G.miIdx].map((c,i) => (!c.criatura && i < 12) ? i : null).filter(i => i !== null);
     if (vacios.length === 0) { mostrarNotif('No hay carriles libres'); return; }
     pedirCarril('¿En qué carril colocás la criatura?', vacios, num => {
       G.tablero[G.miIdx][num].criatura = {...carta, defMax: carta.defensa, floopUsado: false};
@@ -1083,7 +1123,7 @@ function jugarCarta() {
       if (G.modoJuego === 'online') sincronizarEstado();
     });
   } else if (carta.tipo === 'edificio') {
-    const vacios = G.tablero[G.miIdx].map((c,i) => c.edificio ? null : i).filter(i => i !== null);
+    const vacios = G.tablero[G.miIdx].map((c,i) => (!c.edificio && i < 12) ? i : null).filter(i => i !== null);
     if (vacios.length === 0) { mostrarNotif('No hay carriles libres para edificios'); return; }
     pedirCarril('¿En qué carril construís el edificio?', vacios, num => {
       G.tablero[G.miIdx][num].edificio = {...carta};
@@ -1336,7 +1376,7 @@ function faseBatalla() {
   const atacIdx = G.miIdx;
   const defIdx  = 1 - G.miIdx;
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 12; i++) {
     const carrilAtk = G.tablero[atacIdx][i];
     if (!carrilAtk.criatura) continue;
     const atk = carrilAtk.criatura;
@@ -1406,7 +1446,7 @@ function turnoIA() {
     let intentos = 0;
     while (pa > 0 && intentos < 20) {
       intentos++;
-      const carrilVacio = G.tablero[iaIdx].findIndex(c => !c.criatura);
+      const carrilVacio = G.tablero[iaIdx].findIndex((c, idx) => !c.criatura && idx < 12);
       if (carrilVacio === -1) break;
       const carta = mazoCopia.find(c => c.tipo === 'criatura' && c.costo <= pa);
       if (!carta) break;
@@ -1421,7 +1461,7 @@ function turnoIA() {
 
     if (!document.getElementById('fin-overlay').classList.contains('activo')) {
       G.turnoActual = G.miIdx;
-      G.pa = 2;
+      G.pa = Math.min(6, (G.pa || 0) + 3);  // acumula hasta 6
       G.paralizado = {};
       G.mano.forEach(c => c.floopUsado = false);
       // Robar carta al inicio del turno
@@ -1449,7 +1489,7 @@ function faseBatallaIA() {
   const atacIdx = 1 - G.miIdx;
   const defIdx  = G.miIdx;
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 12; i++) {
     const carrilAtk = G.tablero[atacIdx][i];
     if (!carrilAtk.criatura) continue;
     const atk = carrilAtk.criatura;
@@ -1551,10 +1591,34 @@ function pedirCarril(titulo, carriles, callback) {
   document.getElementById('modal-carril-titulo').textContent = titulo;
   const opciones = document.getElementById('modal-carril-opciones');
   opciones.innerHTML = '';
-  carriles.forEach(i => {
+  // Separar en fila delantera (0-5) y trasera (6-11)
+  const delantera = carriles.filter(i => i < 6);
+  const trasera   = carriles.filter(i => i >= 6);
+  if (delantera.length > 0) {
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'color:#888;font-size:0.7rem;margin:4px 0 2px;';
+    lbl.textContent = '── Fila delantera ──';
+    opciones.appendChild(lbl);
+  }
+  delantera.forEach(i => {
     const btn = document.createElement('button');
     btn.className = 'btn btn-verde';
-    btn.style.margin = '4px 0';
+    btn.style.margin = '3px 0';
+    const c = G.tablero[G.miIdx][i];
+    btn.textContent = `Carril ${i+1}${c.criatura ? ' — ' + c.criatura.nombre : ' (vacío)'}`;
+    btn.onclick = () => { cerrarModal('modal-carril'); callback(i); };
+    opciones.appendChild(btn);
+  });
+  if (trasera.length > 0) {
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'color:#888;font-size:0.7rem;margin:6px 0 2px;';
+    lbl.textContent = '── Fila trasera ──';
+    opciones.appendChild(lbl);
+  }
+  trasera.forEach(i => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-gris';
+    btn.style.margin = '3px 0';
     const c = G.tablero[G.miIdx][i];
     btn.textContent = `Carril ${i+1}${c.criatura ? ' — ' + c.criatura.nombre : ' (vacío)'}`;
     btn.onclick = () => { cerrarModal('modal-carril'); callback(i); };
