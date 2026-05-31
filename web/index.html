@@ -742,7 +742,7 @@ function unirseASala() {
 
 function iniciarSocket() {
   if (G.socket) G.socket.disconnect();
-  G.socket = io('https://patria-o-muerte-production.up.railway.app');
+  G.socket = io();
 
   G.socket.on('sala_creada', d => {
     G.codigoSala = d.codigo;
@@ -1397,10 +1397,8 @@ function turnoIA() {
     let pa = 2;
     G.tablero[iaIdx].forEach(c => { if (c.criatura) c.criatura.floopUsado = false; });
 
-    // Robar carta
-    if (G.mazoRival.length > 0) {
-      G.manoRival = Math.min(G.manoRival + 1, 10);
-    }
+    // Robar carta para el jugador al inicio de su próximo turno
+    // (se hace al cambiar turno de vuelta)
 
     // IA juega criaturas en carriles vacíos
     const mazoCopia = [...(CARTAS_DATA[Object.keys(CARTAS_DATA)[Math.floor(Math.random()*5)]] || CARTAS_DATA.oriental)];
@@ -1424,10 +1422,19 @@ function turnoIA() {
     if (!document.getElementById('fin-overlay').classList.contains('activo')) {
       G.turnoActual = G.miIdx;
       G.pa = 2;
+      G.paralizado = {};
       G.mano.forEach(c => c.floopUsado = false);
+      // Robar carta al inicio del turno
       if (G.mazo.length > 0) {
-        G.mano.push({...G.mazo.pop(), defMax: 0, floopUsado: false});
-        G.mano[G.mano.length-1].defMax = G.mano[G.mano.length-1].defensa || 0;
+        const c = G.mazo.pop();
+        G.mano.push({...c, defMax: c.defensa||0, floopUsado: false});
+      } else if (G.descarte.length > 0) {
+        G.mazo = mezclar([...G.descarte]);
+        G.descarte = [];
+        if (G.mazo.length > 0) {
+          const c = G.mazo.pop();
+          G.mano.push({...c, defMax: c.defensa||0, floopUsado: false});
+        }
       }
       renderTablero();
       renderMano();
@@ -1456,9 +1463,18 @@ function faseBatallaIA() {
       if (def.defensa <= 0) { logMsg(`💀 '${def.nombre}' destruida!`); G.tablero[defIdx][i].criatura = null; }
       if (atk.defensa <= 0) { logMsg(`💀 '${atk.nombre}' destruida!`); G.tablero[atacIdx][i].criatura = null; }
     } else {
-      G.hp[defIdx] = Math.max(0, G.hp[defIdx] - atk.ataque);
-      logMsg(`🤖 Carril ${i+1}: '${atk.nombre}' → ${atk.ataque} daño directo!`);
-      mostrarNotif(`💥 -${atk.ataque} HP!`);
+      let daño = atk.ataque;
+      // Bonus edificios IA
+      if (G.tablero[atacIdx][i].edificio?.nombre === 'La Estancia') daño++;
+      if (G.tablero[atacIdx][i].edificio?.nombre === 'El Estadio')  daño += 2;
+      if (G.tablero[atacIdx][i].edificio?.nombre === 'El Centenario') daño += 2;
+      G.hp[defIdx] = Math.max(0, G.hp[defIdx] - daño);
+      logMsg(`🤖 Carril ${i+1}: '${atk.nombre}' → ${daño} daño directo!`);
+      mostrarNotif(`💥 -${daño} HP!`);
+    }
+    // La Rambla del jugador
+    if (G.tablero[defIdx][i].edificio?.nombre === 'La Rambla' && G.tablero[atacIdx][i].criatura) {
+      G.hp[atacIdx] = Math.max(0, G.hp[atacIdx] - 1);
     }
   }
   renderTablero();
@@ -1503,6 +1519,14 @@ function robarCartas(n) {
     if (G.mazo.length > 0) {
       const c = G.mazo.pop();
       G.mano.push({...c, defMax: c.defensa||0, floopUsado: false});
+    } else if (G.descarte.length > 0) {
+      // Rebarajar descarte cuando el mazo se vacía
+      G.mazo = mezclar([...G.descarte]);
+      G.descarte = [];
+      if (G.mazo.length > 0) {
+        const c = G.mazo.pop();
+        G.mano.push({...c, defMax: c.defensa||0, floopUsado: false});
+      }
     }
   }
   renderMano();
@@ -1582,11 +1606,16 @@ function mostrarNotif(msg) {
 }
 
 function verificarVictoria() {
+  // Asegurarse que los HP nunca sean negativos
+  G.hp[0] = Math.max(0, G.hp[0]);
+  G.hp[1] = Math.max(0, G.hp[1]);
   if (G.hp[0] <= 0 || G.hp[1] <= 0) {
     const ganadorIdx = G.hp[0] > 0 ? 0 : 1;
     const perdedorIdx = 1 - ganadorIdx;
     mostrarFinPartida(G.nombres[ganadorIdx], G.nombres[perdedorIdx]);
+    return true;
   }
+  return false;
 }
 
 function mostrarFinPartida(ganador, perdedor) {
