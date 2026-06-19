@@ -911,15 +911,14 @@ function renderCarrilesFila(containerId, idx, esRival, desde, hasta, esTrasera=f
 
       const info = document.createElement('div');
       info.className = 'criatura-info';
-      info.innerHTML = \`
-        <div class="criatura-nombre">\${c.nombre}</div>
-        <div class="mini-barra"><div class="mini-barra-fill" style="width:\${Math.max(0,(c.defensa/c.defMax)*100)}%"></div></div>
-        <div class="stats-row">
-          <span class="stat-atk">⚔\${c.ataque}</span>
-          <span class="stat-def">🛡\${c.defensa}</span>
-        </div>
-        \${c.floop && !c.floopUsado ? '<div class="floop-badge">✨FLOOP</div>' : ''}
-      \`;
+    info.innerHTML = 
+        '<div class="criatura-nombre">' + c.nombre + '</div>' +
+        '<div class="mini-barra"><div class="mini-barra-fill" style="width:' + Math.max(0,(c.defensa/c.defMax)*100) + '%"></div></div>' +
+        '<div class="stats-row">' +
+          '<span class="stat-atk">⚔' + c.ataque + '</span>' +
+          '<span class="stat-def">🛡' + c.defensa + '</span>' +
+        '</div>' +
+        (c.floop && !c.floopUsado ? '<div class="floop-badge">✨FLOOP</div>' : '');
       div.appendChild(info);
     }
 
